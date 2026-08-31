@@ -1610,10 +1610,10 @@ async function handleCommand(socket: WebSocket, command: BrowserCommand): Promis
         await queueManagement(async () => {
           await ensureIdle()
           const response = await rpc.request({ type: 'new_session' })
+          send(socket, { type: 'command_result', command: 'new_session', success: true, data: response.data })
           await sendSnapshot()
           record({ category: 'session', type: 'session_new', severity: 'info', summary: 'Started a new session', sessionId: currentSessionId })
           broadcast({ type: 'sessions_changed' })
-          send(socket, { type: 'command_result', command: 'new_session', success: true, data: response.data })
         })
         break
       case 'switch_session':
