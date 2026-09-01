@@ -147,8 +147,15 @@ function buildSummary(path: string, header: SessionHeader, entries: SessionEntry
   }
 }
 
+interface CachedParsedSession {
+  mtimeMs: number
+  size: number
+  session: ParsedSession | null
+}
+
 export class SessionCatalog {
   private readonly root: string
+  private readonly cache = new Map<string, CachedParsedSession>()
 
   constructor(root: string, private readonly workspace: string) {
     this.root = resolve(root)
@@ -190,6 +197,7 @@ export class SessionCatalog {
       name,
     }
     await appendFile(session.path, `${JSON.stringify(entry)}\n`, 'utf8')
+    this.cache.delete(session.path)
   }
 
   private async scan(): Promise<ParsedSession[]> {
@@ -202,9 +210,10 @@ export class SessionCatalog {
     }
 
     const parsed: ParsedSession[] = []
+    const resolvedWorkspace = resolve(this.workspace).toLowerCase()
     for (const path of files) {
       const session = await this.parse(path)
-      if (session && resolve(session.header.cwd) === resolve(this.workspace)) parsed.push(session)
+      if (session && resolve(session.header.cwd).toLowerCase() === resolvedWorkspace) parsed.push(session)
     }
     return parsed
   }
@@ -212,9 +221,11 @@ export class SessionCatalog {
   private async findJsonl(directory: string): Promise<string[]> {
     const results: string[] = []
     const entries = await readdir(directory, { withFileTypes: true })
+    const resolvedRoot = resolve(this.root).toLowerCase()
     for (const entry of entries) {
       const path = join(directory, entry.name)
-      if (!resolve(path).startsWith(`${this.root}${sep}`)) continue
+      const resolvedPath = resolve(path).toLowerCase()
+      if (!resolvedPath.startsWith(resolvedRoot)) continue
       if (entry.isDirectory()) results.push(...await this.findJsonl(path))
       else if (entry.isFile() && entry.name.endsWith('.jsonl')) results.push(path)
     }
@@ -225,22 +236,31 @@ export class SessionCatalog {
     try {
       const info = await stat(path)
       if (info.size === 0 || info.size > MAX_SESSION_BYTES) return null
+      const cached = this.cache.get(path)
+      if (cached && cached.mtimeMs === info.mtimeMs && cached.size === info.size) {
+        return cached.session
+      }
       const source = await readFile(path, 'utf8')
       const records = source.split('\n').filter(Boolean).flatMap((line) => {
         try { return [JSON.parse(line) as SessionHeader | SessionEntry] } catch { return [] }
       })
       const header = records[0]
-      if (!header || header.type !== 'session' || !('id' in header) || !('cwd' in header)) return null
+      if (!header || header.type !== 'session' || !('id' in header) || !('cwd' in header)) {
+        this.cache.set(path, { mtimeMs: info.mtimeMs, size: info.size, session: null })
+        return null
+      }
       const sessionHeader = header as SessionHeader
       const entries = records.slice(1) as SessionEntry[]
       const branch = activeBranch(entries)
-      return {
+      const parsedSession: ParsedSession = {
         path,
         header: sessionHeader,
         entries,
         branch,
         summary: buildSummary(path, sessionHeader, entries, branch, info.mtime.toISOString()),
       }
+      this.cache.set(path, { mtimeMs: info.mtimeMs, size: info.size, session: parsedSession })
+      return parsedSession
     } catch {
       return null
     }

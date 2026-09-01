@@ -290,10 +290,13 @@ export function usePiChat() {
           if (envelope.status === 'error') {
             setConnection('error')
             setConnectionError(envelope.message ?? 'Pi backend failed to start')
+          } else if (envelope.status === 'connected') {
+            setConnection('connected')
           }
         } else if (envelope.type === 'state' && envelope.state) {
           setState(envelope.state)
           setRunning(Boolean(envelope.state.isStreaming))
+          setConnection('connected')
         } else if (envelope.type === 'history' && envelope.messages) {
           setItems(historyToItems(envelope.messages))
           setConnection('connected')
@@ -376,12 +379,16 @@ export function usePiChat() {
   }, [send])
 
   const newSession = useCallback(() => {
-    if (send({ type: 'new_session' })) setPendingCommand(true)
+    if (send({ type: 'new_session' })) {
+      setItems([])
+      setPendingCommand(true)
+    }
   }, [send])
 
   const newSessionWithPrompt = useCallback((message: string): boolean => {
     const accepted = send({ type: 'new_session' })
     if (accepted) {
+      setItems([])
       newSessionPrefill.current = message
       setPendingCommand(true)
     }
