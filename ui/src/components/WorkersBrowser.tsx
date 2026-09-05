@@ -1,6 +1,6 @@
 import { FormEvent, useMemo, useState } from 'react'
 import { Chip, Panel } from './Panel'
-import { useWorkers, type WorkerMode, type WorkerProvider, type WorkerRuleFile, type WorkerStatus, type WorkerTask } from '../hooks/useWorkers'
+import { useWorkers, type WorkerChangeSet, type WorkerMode, type WorkerProvider, type WorkerRuleFile, type WorkerStatus, type WorkerTask } from '../hooks/useWorkers'
 import { useSystemStatus, type AvailableModel } from '../hooks/useSystemStatus'
 import { WorkerConsole, type WorkerConsoleMode } from './WorkerConsole'
 
@@ -12,12 +12,22 @@ const modes: Array<{ id: WorkerMode; label: string; detail: string }> = [
 
 function statusTone(status: WorkerStatus | 'ready' | 'disabled' | 'unavailable' | 'planned') {
   if (status === 'completed' || status === 'ready') return 'accent' as const
-  if (status === 'running' || status === 'queued') return 'neutral' as const
+  if (status === 'running' || status === 'queued' || status === 'starting' || status === 'cancelling') return 'neutral' as const
   return 'warning' as const
+}
+
+function activeStatus(status: WorkerStatus): boolean {
+  return status === 'queued' || status === 'starting' || status === 'running' || status === 'cancelling'
 }
 
 function time(value?: string): string {
   return value ? new Date(value).toLocaleString() : '—'
+}
+
+function duration(milliseconds?: number): string {
+  if (milliseconds === undefined) return '—'
+  const seconds = Math.round(milliseconds / 1000)
+  return seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`
 }
 
 function modelKey(provider: string, id: string): string {
@@ -38,11 +48,17 @@ export function WorkersBrowser({ onOpenSession }: { onOpenSession: (sessionId: s
   const [mode, setMode] = useState<WorkerMode>('research')
   const [selectedModelKey, setSelectedModelKey] = useState('default')
   const [selectedThinking, setSelectedThinking] = useState('default')
+  const [codexModel, setCodexModel] = useState('')
   const [turnLimit, setTurnLimit] = useState(8)
   const [timeoutMinutes, setTimeoutMinutes] = useState(10)
   const [resultLimitKb, setResultLimitKb] = useState(12)
   const [showBounds, setShowBounds] = useState(false)
   const [prompt, setPrompt] = useState('')
+  const [continuePrompt, setContinuePrompt] = useState('')
+  const [continuingTaskId, setContinuingTaskId] = useState<string>()
+  const [continueAsHandoff, setContinueAsHandoff] = useState(false)
+  const [changeSet, setChangeSet] = useState<WorkerChangeSet>()
+  const [changesLoading, setChangesLoading] = useState(false)
 
   // Console terminal modal
   const [activeConsole, setActiveConsole] = useState<{ providerId: string; providerName: string; mode: WorkerConsoleMode } | null>(null)
@@ -152,6 +168,7 @@ export function WorkersBrowser({ onOpenSession }: { onOpenSession: (sessionId: s
         modelPayload = { provider: parsed.provider, id: parsed.model }
       }
     }
+    if (selectedProviderId === 'codex-cli' && codexModel.trim()) modelPayload = { provider: 'openai', id: codexModel.trim() }
     const thinkingPayload = selectedThinking !== 'default' && selectedProviderId === 'sub-pi' ? selectedThinking : undefined
 
     const boundsPayload = {
@@ -170,6 +187,29 @@ export function WorkersBrowser({ onOpenSession }: { onOpenSession: (sessionId: s
     })
 
     if (ok) setPrompt('')
+  }
+
+  async function handleContinue(task: WorkerTask, forceHandoff = false) {
+    if (continuingTaskId !== task.id) {
+      setContinuingTaskId(task.id)
+      setContinueAsHandoff(forceHandoff)
+      setContinuePrompt('')
+      return
+    }
+    if (forceHandoff) setContinueAsHandoff(true)
+    if (!continuePrompt.trim()) return
+    if (await workers.continueTask(task.id, continuePrompt, forceHandoff || continueAsHandoff)) {
+      setContinuePrompt('')
+      setContinuingTaskId(undefined)
+      setChangeSet(undefined)
+    }
+  }
+
+  async function handleViewChanges(task: WorkerTask, runId?: string) {
+    setChangesLoading(true)
+    try { setChangeSet(await workers.loadChanges(task.id, runId)) }
+    catch { setChangeSet(undefined) }
+    finally { setChangesLoading(false) }
   }
 
   return (
@@ -337,7 +377,7 @@ export function WorkersBrowser({ onOpenSession }: { onOpenSession: (sessionId: s
                       key={p.id}
                       type="button"
                       onClick={() => setSelectedProviderId(p.id)}
-                      disabled={active || workers.busy}
+                      disabled={workers.busy}
                       style={{
                         padding: '4px 10px',
                         borderRadius: '6px',
@@ -363,7 +403,7 @@ export function WorkersBrowser({ onOpenSession }: { onOpenSession: (sessionId: s
                     type="button"
                     key={item.id}
                     onClick={() => setMode(item.id)}
-                    disabled={active || workers.busy || currentProvider?.status !== 'ready'}
+                    disabled={workers.busy || currentProvider?.status !== 'ready'}
                   >
                     <strong>{item.label}</strong>
                     <span>{item.detail}</span>
@@ -379,7 +419,7 @@ export function WorkersBrowser({ onOpenSession }: { onOpenSession: (sessionId: s
                     <select
                       value={selectedModelKey}
                       onChange={(e) => setSelectedModelKey(e.target.value)}
-                      disabled={active || workers.busy || currentProvider?.status !== 'ready'}
+                      disabled={workers.busy || currentProvider?.status !== 'ready'}
                       style={{ padding: '8px 10px', background: 'var(--field)', color: 'var(--text)', border: '1px solid var(--line)', borderRadius: '7px', font: '11px sans-serif' }}
                     >
                       <option value="default">⚡ Same as Primary Pi (Default)</option>
@@ -400,7 +440,7 @@ export function WorkersBrowser({ onOpenSession }: { onOpenSession: (sessionId: s
                     <select
                       value={selectedThinking}
                       onChange={(e) => setSelectedThinking(e.target.value)}
-                      disabled={active || workers.busy || currentProvider?.status !== 'ready'}
+                      disabled={workers.busy || currentProvider?.status !== 'ready'}
                       style={{ padding: '8px 10px', background: 'var(--field)', color: 'var(--text)', border: '1px solid var(--line)', borderRadius: '7px', font: '11px sans-serif' }}
                     >
                       <option value="default">Default Thinking</option>
@@ -430,12 +470,12 @@ export function WorkersBrowser({ onOpenSession }: { onOpenSession: (sessionId: s
                   }}
                 >
                   <span>{showBounds ? '▾' : '▸'}</span>
-                  <span>Execution Bounds: {turnLimit} turns · {timeoutMinutes}m timeout · {resultLimitKb}KB cap</span>
+                  <span>Execution bounds: {selectedProviderId === 'sub-pi' ? `${turnLimit} turns · ` : ''}{timeoutMinutes}m timeout · {resultLimitKb}KB result cap</span>
                 </button>
 
                 {showBounds && (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px', padding: '10px', background: 'var(--card-bg, #141a21)', borderRadius: '6px', border: '1px solid var(--line)', marginTop: '6px' }}>
-                    <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px', color: 'var(--muted)' }}>
+                    {selectedProviderId === 'sub-pi' && <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px', color: 'var(--muted)' }}>
                       <span>Max Turns ({turnLimit}):</span>
                       <input
                         type="range"
@@ -443,9 +483,13 @@ export function WorkersBrowser({ onOpenSession }: { onOpenSession: (sessionId: s
                         max="30"
                         value={turnLimit}
                         onChange={(e) => setTurnLimit(Number(e.target.value))}
-                        disabled={active || workers.busy}
+                        disabled={workers.busy}
                       />
-                    </label>
+                    </label>}
+                    {selectedProviderId === 'codex-cli' && <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px', color: 'var(--muted)' }}>
+                      <span>Codex model override (optional):</span>
+                      <input value={codexModel} onChange={(event) => setCodexModel(event.target.value)} placeholder="Use CLI default" disabled={workers.busy} />
+                    </label>}
                     <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px', color: 'var(--muted)' }}>
                       <span>Timeout ({timeoutMinutes} min):</span>
                       <input
@@ -454,7 +498,7 @@ export function WorkersBrowser({ onOpenSession }: { onOpenSession: (sessionId: s
                         max="30"
                         value={timeoutMinutes}
                         onChange={(e) => setTimeoutMinutes(Number(e.target.value))}
-                        disabled={active || workers.busy}
+                        disabled={workers.busy}
                       />
                     </label>
                     <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px', color: 'var(--muted)' }}>
@@ -465,7 +509,7 @@ export function WorkersBrowser({ onOpenSession }: { onOpenSession: (sessionId: s
                         max="64"
                         value={resultLimitKb}
                         onChange={(e) => setResultLimitKb(Number(e.target.value))}
-                        disabled={active || workers.busy}
+                        disabled={workers.busy}
                       />
                     </label>
                   </div>
@@ -481,7 +525,7 @@ export function WorkersBrowser({ onOpenSession }: { onOpenSession: (sessionId: s
                   value={prompt}
                   onChange={(event) => setPrompt(event.target.value)}
                   placeholder={`Describe a narrow task for ${currentProvider?.name ?? 'the worker'} and the concise deliverable Primary PI should receive…`}
-                  disabled={active || workers.busy || currentProvider?.status !== 'ready'}
+                  disabled={workers.busy || currentProvider?.status !== 'ready'}
                 />
               </label>
 
@@ -490,7 +534,7 @@ export function WorkersBrowser({ onOpenSession }: { onOpenSession: (sessionId: s
                 <button
                   className="button button--primary"
                   type="submit"
-                  disabled={!prompt.trim() || active || workers.busy || currentProvider?.status !== 'ready'}
+                  disabled={!prompt.trim() || workers.busy || currentProvider?.status !== 'ready'}
                 >
                   {workers.busy ? 'Starting…' : `Start ${currentProvider?.name ?? 'Worker'}`}
                 </button>
@@ -502,7 +546,7 @@ export function WorkersBrowser({ onOpenSession }: { onOpenSession: (sessionId: s
             {/* History and Detail Panes */}
             {(() => {
               const selectedTask = workers.snapshot?.tasks.find((task) => task.id === workers.selectedId) ?? archivedTasks.find((task) => task.id === workers.selectedId)
-              const hasCompletedTasks = (workers.snapshot?.tasks ?? []).some((t) => t.status !== 'running' && t.status !== 'queued')
+              const hasCompletedTasks = (workers.snapshot?.tasks ?? []).some((t) => !activeStatus(t.status))
 
               return (
                 <div className="worker-workspace">
@@ -566,7 +610,7 @@ export function WorkersBrowser({ onOpenSession }: { onOpenSession: (sessionId: s
                               <strong>{task.providerName}</strong>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                                 <Chip tone={statusTone(task.status)}>{task.status}</Chip>
-                                {task.status !== 'running' && task.status !== 'queued' && (
+                                {!activeStatus(task.status) && (
                                   <span
                                     role="button"
                                     className="task-mini-archive-btn"
@@ -582,7 +626,7 @@ export function WorkersBrowser({ onOpenSession }: { onOpenSession: (sessionId: s
                               </div>
                             </div>
                             <p>{task.prompt}</p>
-                            <small>{task.mode} · {time(task.createdAt)}</small>
+                            <small>{task.mode} · {time(task.createdAt)}{task.queuePosition ? ` · queue #${task.queuePosition}` : ''}</small>
                           </button>
                         ))
                       ) : (
@@ -647,7 +691,7 @@ export function WorkersBrowser({ onOpenSession }: { onOpenSession: (sessionId: s
                           </div>
                           <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                             <Chip tone={statusTone(selectedTask.status)}>{selectedTask.status}</Chip>
-                            {!selectedTask.archived && selectedTask.status !== 'running' && selectedTask.status !== 'queued' && (
+                            {!selectedTask.archived && !activeStatus(selectedTask.status) && (
                               <button
                                 className="button button--quiet"
                                 style={{ fontSize: '10px', padding: '3px 7px' }}
@@ -662,14 +706,46 @@ export function WorkersBrowser({ onOpenSession }: { onOpenSession: (sessionId: s
                         </header>
                         <div className="worker-progress">
                           <div><span>Progress</span><strong>{selectedTask.progress}</strong></div>
-                          <div><span>Turns</span><strong>{selectedTask.turns} / {selectedTask.bounds.turnLimit}</strong></div>
+                          <div><span>{selectedTask.providerId === 'sub-pi' ? 'Turns' : 'Activity'}</span><strong>{selectedTask.providerId === 'sub-pi' ? `${selectedTask.turns} / ${selectedTask.bounds.turnLimit}` : `${selectedTask.turns} events`}</strong></div>
                           <div><span>Started</span><strong>{time(selectedTask.startedAt)}</strong></div>
+                          <div><span>Elapsed</span><strong>{duration(selectedTask.elapsedMs)}</strong></div>
+                          <div><span>Last activity</span><strong>{time(selectedTask.lastActivityAt)}</strong></div>
                         </div>
-                        {(selectedTask.status === 'running' || selectedTask.status === 'queued') && (
+                        {activeStatus(selectedTask.status) && (
                           <div className="worker-running-actions">
                             <button className="button button--stop" type="button" disabled={workers.busy} onClick={() => void workers.cancel(selectedTask.id)}>
                               Cancel task
                             </button>
+                          </div>
+                        )}
+                        {!selectedTask.archived && !activeStatus(selectedTask.status) && (
+                          <div className="worker-running-actions" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                            <button className="button button--primary" type="button" disabled={workers.busy} onClick={() => void handleContinue(selectedTask)}>
+                              Continue
+                            </button>
+                            {selectedTask.status === 'failed' && selectedTask.runs?.at(-1)?.continuationKind === 'native' && (
+                              <button className="button button--quiet" type="button" disabled={workers.busy} onClick={() => void handleContinue(selectedTask, true)}>
+                                Use saved handoff
+                              </button>
+                            )}
+                            <button className="button button--quiet" type="button" disabled={changesLoading} onClick={() => void handleViewChanges(selectedTask)}>
+                              {changesLoading ? 'Loading changes…' : 'View changes'}
+                            </button>
+                            <small style={{ alignSelf: 'center', color: 'var(--muted)' }}>
+                              {selectedTask.providerCapabilities?.continuation && selectedTask.sessionId ? 'Continues the saved provider session.' : 'Starts a new session using a saved handoff.'}
+                            </small>
+                          </div>
+                        )}
+                        {continuingTaskId === selectedTask.id && !activeStatus(selectedTask.status) && (
+                          <div style={{ display: 'grid', gap: '7px', padding: '10px', border: '1px solid var(--line)', borderRadius: '7px', marginBottom: '10px' }}>
+                            <label className="worker-prompt">
+                              <span>Follow-up instruction · {selectedTask.providerName} · {selectedTask.mode} permissions{continueAsHandoff ? ' · new session with saved handoff' : ''}</span>
+                              <textarea rows={3} maxLength={12000} value={continuePrompt} onChange={(event) => setContinuePrompt(event.target.value)} placeholder="What should this worker do next?" />
+                            </label>
+                            <div style={{ display: 'flex', gap: '7px', justifyContent: 'flex-end' }}>
+                              <button className="button button--quiet" type="button" onClick={() => setContinuingTaskId(undefined)}>Cancel</button>
+                              <button className="button button--primary" type="button" disabled={!continuePrompt.trim() || workers.busy} onClick={() => void handleContinue(selectedTask)}>Submit follow-up</button>
+                            </div>
                           </div>
                         )}
                         {selectedTask.error && <div className="worker-error">{selectedTask.error}</div>}
@@ -708,11 +784,43 @@ export function WorkersBrowser({ onOpenSession }: { onOpenSession: (sessionId: s
                           )}
                         </section>
 
+                        {changeSet && selectedTask.runs?.some((run) => run.id === changeSet.runId) && (
+                          <section className="worker-result">
+                            <span className="eyebrow">Changes for run {(selectedTask.runs.findIndex((run) => run.id === changeSet.runId) + 1)}</span>
+                            {changeSet.warning && <div className="worker-error">{changeSet.warning}</div>}
+                            {changeSet.files.length ? changeSet.files.map((file) => (
+                              <details key={file.path} style={{ marginTop: '8px' }}>
+                                <summary><code>{file.path}</code> · {file.state}{file.truncated ? ' · truncated' : ''}</summary>
+                                {file.warning && <small>{file.warning}</small>}
+                                <pre>{file.diff || 'Change detected, but no text diff is available.'}</pre>
+                              </details>
+                            )) : <p>No per-run text changes were detected.</p>}
+                          </section>
+                        )}
+
+                        {Boolean(selectedTask.runs?.length) && (
+                          <section className="worker-files">
+                            <span className="eyebrow">Run history</span>
+                            <ul>
+                              {selectedTask.runs!.map((run, index) => (
+                                <li key={run.id} style={{ alignItems: 'flex-start' }}>
+                                  <button className="button button--quiet" type="button" onClick={() => void handleViewChanges(selectedTask, run.id)}>
+                                    Run {index + 1} · {run.status}
+                                  </button>
+                                  <span>{run.continuationKind === 'handoff' ? 'new session handoff' : run.continuationKind === 'native' ? 'native continuation' : time(run.createdAt)}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </section>
+                        )}
+
                         <footer>
-                          {selectedTask.sessionId ? (
+                          {selectedTask.sessionId && selectedTask.providerId === 'sub-pi' ? (
                             <button className="button button--quiet" type="button" onClick={() => onOpenSession(selectedTask.sessionId!)}>
                               Open saved Sub PI session ↗
                             </button>
+                          ) : selectedTask.sessionId ? (
+                            <span>Provider session: <code>{selectedTask.sessionId}</code></span>
                           ) : (
                             <span>Native CLI execution complete.</span>
                           )}

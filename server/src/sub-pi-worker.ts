@@ -2,6 +2,8 @@ import type { RpcEvent } from './types.js'
 import { PiRpcProcess } from './pi-rpc.js'
 import type { GitService, GitStatusEntry } from './git-service.js'
 import type { WorkerAdapter, WorkerChangedFile, WorkerMode, WorkerProviderStatus, WorkerRunHooks, WorkerRunInput, WorkerRunOutput } from './worker-types.js'
+import { effectiveWorkerPrompt } from './worker-handoff.js'
+import { WorkerRunError } from './worker-run-error.js'
 
 function toolsFor(mode: WorkerMode): string {
   return mode === 'implement' ? 'read,grep,find,ls,bash,edit,write' : 'read,grep,find,ls'
@@ -38,7 +40,7 @@ function workerPrompt(input: WorkerRunInput): string {
 
   const rules = input.ruleContext ? `\n\nGuidelines:\n${input.ruleContext}\n` : ''
 
-  return `You are Sub PI, a bounded worker reporting to Primary PI.\n\nMode: ${input.mode}\n${policy}${rules}\nWork only on the narrow task below. Keep the final response concise and decision-useful. Include findings, validation performed, and changed files (if any). Primary PI will review your work and remains responsible for all final decisions.\n\nTask:\n${input.prompt}\n\nBounds: at most ${input.bounds.turnLimit} model turns and ${Math.round(input.bounds.timeoutMs / 60_000)} minutes.`
+  return `You are Sub PI, a bounded worker reporting to Primary PI.\n\nMode: ${input.mode}\n${policy}${rules}\nWork only on the narrow task below. Keep the final response concise and decision-useful. Include findings, validation performed, and changed files (if any). Primary PI will review your work and remains responsible for all final decisions.\n\nTask:\n${effectiveWorkerPrompt(input)}\n\nBounds: at most ${input.bounds.turnLimit} model turns and ${Math.round(input.bounds.timeoutMs / 60_000)} minutes.`
 }
 
 export interface SubPiWorkerOptions {
@@ -68,6 +70,7 @@ export class SubPiWorkerAdapter implements WorkerAdapter {
       statusLabel: this.options.enabled ? 'Ready in this Dashboard profile' : 'Enable Workers in the Dashboard profile',
       modes: ['research', 'review', 'implement'] as WorkerMode[],
       enabled: this.options.enabled,
+      capabilities: { nativeSessions: true, continuation: false, structuredEvents: true, cancellation: true, modelSelection: true },
       loginCommand: 'exec pi',
       manageCommand: 'exec pi',
     }
@@ -90,6 +93,8 @@ export class SubPiWorkerAdapter implements WorkerAdapter {
     const before = (await this.options.git.status()).entries
     const touched = new Set<string>()
     let result = ''
+    let resultCaptureTruncated = false
+    const captureLimit = Math.max(input.bounds.resultLimitBytes, 64 * 1024)
     let turns = 0
     let settledResolve: (() => void) | undefined
     let settledReject: ((error: Error) => void) | undefined
@@ -105,7 +110,14 @@ export class SubPiWorkerAdapter implements WorkerAdapter {
         }
       } else if (event.type === 'message_update') {
         const delta = event.assistantMessageEvent as Record<string, unknown> | undefined
-        if (delta?.type === 'text_delta' && typeof delta.delta === 'string') result += delta.delta
+        if (delta?.type === 'text_delta' && typeof delta.delta === 'string' && !resultCaptureTruncated) {
+          result += delta.delta
+          const bytes = Buffer.from(result)
+          if (bytes.length > captureLimit) {
+            result = bytes.subarray(0, captureLimit).toString('utf8')
+            resultCaptureTruncated = true
+          }
+        }
         if (delta?.type === 'error' && delta.reason !== 'aborted') settledReject?.(new Error(`Sub PI response failed: ${String(delta.reason ?? 'unknown error')}`))
       } else if (event.type === 'tool_execution_start') {
         const toolName = String(event.toolName ?? 'tool')
@@ -132,13 +144,18 @@ export class SubPiWorkerAdapter implements WorkerAdapter {
       if (!sessionId) throw new Error('Sub PI did not provide a saved session ID')
       await hooks.onSession(sessionId)
       await rpc.request({ type: 'prompt', message: workerPrompt(input) })
-      await settled
+      try {
+        await settled
+      } catch (error) {
+        const partial = result ? boundedText(result, input.bounds.resultLimitBytes) : undefined
+        throw new WorkerRunError(error instanceof Error ? error.message : 'Sub PI worker failed', partial?.text, Boolean(partial?.truncated || resultCaptureTruncated))
+      }
       const bounded = boundedText(result || 'Sub PI finished without a text result. Inspect the saved session for details.', input.bounds.resultLimitBytes)
       const after = (await this.options.git.status()).entries
       const files = changedFiles(before, after, touched)
       return {
         result: bounded.text,
-        resultTruncated: bounded.truncated,
+        resultTruncated: bounded.truncated || resultCaptureTruncated,
         changedFiles: files,
         resultEnvelope: {
           summary: bounded.text.slice(0, 300),

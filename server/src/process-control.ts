@@ -79,6 +79,19 @@ async function identityStillMatches(identity: ProcessIdentity): Promise<boolean>
   return current === identity.creationTime
 }
 
+export async function processIdentityExists(identity: ProcessIdentity): Promise<boolean> {
+  if (process.platform === 'win32') {
+    const current = await windowsCreationTime(identity.pid)
+    return Boolean(current && (!identity.creationTime || current === identity.creationTime))
+  }
+  try {
+    process.kill(identity.pid, 0)
+    return true
+  } catch {
+    return false
+  }
+}
+
 async function taskkill(identity: ProcessIdentity, force: boolean): Promise<void> {
   if (!(await identityStillMatches(identity))) {
     throw new Error(`Refusing to terminate PID ${identity.pid}: process identity changed`)
@@ -92,6 +105,20 @@ async function taskkill(identity: ProcessIdentity, force: boolean): Promise<void
     const stderr = String((error as { stderr?: string | Buffer }).stderr ?? '')
     if (!/not found|no running instance/i.test(stderr)) throw error
   }
+}
+
+export async function terminateProcessIdentity(identity: ProcessIdentity): Promise<void> {
+  if (!(await processIdentityExists(identity))) return
+  if (process.platform === 'win32') {
+    try { await taskkill(identity, false) } catch { await taskkill(identity, true) }
+    const deadline = Date.now() + 2_000
+    while (Date.now() < deadline && await processIdentityExists(identity)) {
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    }
+    if (await processIdentityExists(identity)) await taskkill(identity, true)
+    return
+  }
+  try { process.kill(-identity.pid, 'SIGTERM') } catch { try { process.kill(identity.pid, 'SIGTERM') } catch {} }
 }
 
 export async function terminateProcessTree(child: ChildProcess, options: TerminateProcessTreeOptions = {}): Promise<void> {

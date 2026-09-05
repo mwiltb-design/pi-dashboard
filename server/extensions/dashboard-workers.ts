@@ -77,12 +77,13 @@ export default function dashboardWorkers(pi: ExtensionAPI) {
         resultLimitKb: Type.Optional(Type.Number({ minimum: 1, maximum: 64, description: 'Maximum result size in KB (1-64)' })),
       }, { description: 'Optional execution bounds override' })),
     }),
-    async execute(_toolCallId, parameters) {
+    async execute(toolCallId, parameters) {
       try {
         const payload = {
           providerId: parameters.providerId,
           mode: parameters.mode,
           prompt: parameters.prompt,
+          submissionId: toolCallId,
           ...(parameters.bounds ? {
             bounds: {
               ...(parameters.bounds.turnLimit ? { turnLimit: parameters.bounds.turnLimit } : {}),
@@ -98,7 +99,7 @@ export default function dashboardWorkers(pi: ExtensionAPI) {
         const bounds = created.bounds as Record<string, unknown> | undefined
         const taskTimeoutMs = typeof bounds?.timeoutMs === 'number' ? bounds.timeoutMs : MAX_DELEGATE_WAIT_MS - CLEANUP_GRACE_MS
         const waitDeadline = Date.now() + Math.min(MAX_DELEGATE_WAIT_MS, Math.max(60_000, taskTimeoutMs + CLEANUP_GRACE_MS))
-        while (task.status === 'queued' || task.status === 'running') {
+        while (task.status === 'queued' || task.status === 'starting' || task.status === 'running' || task.status === 'cancelling') {
           if (Date.now() >= waitDeadline) {
             const summary = {
               taskId: id,

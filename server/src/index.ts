@@ -26,13 +26,11 @@ import { SessionCatalog } from './session-catalog.js'
 import { SkillError, SkillService } from './skill-service.js'
 import { SystemError, SystemService, THINKING_LEVELS } from './system-service.js'
 import { ToolService } from './tool-service.js'
-import { SubPiWorkerAdapter } from './sub-pi-worker.js'
-import { AntigravityWorkerAdapter } from './antigravity-worker.js'
-import { CodexWorkerAdapter } from './codex-worker.js'
-import { ClaudeWorkerAdapter } from './claude-worker.js'
 import { WorkerRulesService } from './worker-rules.js'
 import { WorkerConsoleSession } from './worker-console-session.js'
-import { WorkerCoordinator, WorkerError } from './worker-coordinator.js'
+import { WorkerError } from './worker-coordinator.js'
+import { WorkerSupervisorClient } from './worker-supervisor-client.js'
+import type { WorkerSupervisorConfig } from './worker-supervisor-types.js'
 import { ProjectService } from './project-service.js'
 import { ShortcutService } from './shortcut-service.js'
 import { RemoteAccessService } from './remote-access-service.js'
@@ -143,47 +141,26 @@ const workerBounds = {
   timeoutMs: positiveLimit(process.env.PI_DASHBOARD_WORKER_TIMEOUT_MS, 10 * 60_000, 60_000),
   resultLimitBytes: positiveLimit(process.env.PI_DASHBOARD_WORKER_RESULT_LIMIT_BYTES, 12 * 1024, 1024),
 }
-let subPi = new SubPiWorkerAdapter({
-  workspace,
-  sessionDir: rpcSessionDir,
-  pluginToolsExtension,
-  pluginStateRoot,
-  pluginCodeRoot,
-  authoringSkillPath: dashboardPluginAuthoringSkill,
-  referenceSkillPath: dashboardReferenceSkill,
-  git,
-  enabled: enabledFeatures.has('workers'),
-})
-let antigravityWorker = new AntigravityWorkerAdapter({
-  workspace,
-  git,
-  enabled: enabledFeatures.has('workers'),
-})
-let codexWorker = new CodexWorkerAdapter({
-  workspace,
-  git,
-  enabled: enabledFeatures.has('workers'),
-})
-let claudeWorker = new ClaudeWorkerAdapter({
-  workspace,
-  git,
-  enabled: enabledFeatures.has('workers'),
-})
-let workers = new WorkerCoordinator({
-  storePath: workerStorePath,
-  archivePath: workerArchivePath,
-  adapters: [subPi, antigravityWorker, codexWorker, claudeWorker],
-  rulesService: workerRules,
-  bounds: workerBounds,
-  primaryDefaults: async () => {
-    const snapshot = await state()
-    const model = snapshot.model && typeof snapshot.model === 'object' ? snapshot.model as Record<string, unknown> : undefined
-    return {
-      ...(model && typeof model.provider === 'string' && typeof model.id === 'string' ? { model: { provider: model.provider, id: model.id } } : {}),
-      ...(typeof snapshot.thinkingLevel === 'string' ? { thinkingLevel: snapshot.thinkingLevel } : {}),
-    }
-  },
-})
+function workerSupervisorConfig(): WorkerSupervisorConfig {
+  return {
+    schemaVersion: 1,
+    dataDir: projectDataDir,
+    workspace,
+    storePath: workerStorePath,
+    archivePath: workerArchivePath,
+    rulesRoot: workerRules.rootDir,
+    sessionDir: rpcSessionDir,
+    pluginToolsExtension,
+    pluginStateRoot,
+    pluginCodeRoot,
+    authoringSkillPath: dashboardPluginAuthoringSkill,
+    referenceSkillPath: dashboardReferenceSkill,
+    enabled: enabledFeatures.has('workers'),
+    bounds: workerBounds,
+  }
+}
+
+let workers = new WorkerSupervisorClient(workerSupervisorConfig())
 await Promise.all([
   activity.initialize(),
   sessionArchive.initialize(),
@@ -272,6 +249,7 @@ async function runtimeSkillPaths(): Promise<string[]> {
 async function reloadRpcResources(): Promise<void> {
   await ensureIdle()
   await rpc.stop()
+  await workers.close()
   await rpc.start()
   await sendSnapshot()
   broadcast({ type: 'skills_changed' })
@@ -326,47 +304,7 @@ async function switchActiveWorkspace(targetWorkspace: string): Promise<{ workspa
   onboarding = new OnboardingService(workspace, agentDir, defaultDashboardDataDir)
   plugins = new PluginService({ bundledRoot: pluginCodeRoot, stateRoot: pluginStateRoot, workspaceRoot: workspace, runtimeSocketRoot: pluginRuntimeSocketRoot, assetCapability: pluginAssetCapability, localRepositoryRoot: pluginLocalRepositoryRoot })
   activity = new ActivityStore(activityPath)
-  subPi = new SubPiWorkerAdapter({
-    workspace,
-    sessionDir: currentRpcSessionDir,
-    pluginToolsExtension,
-    pluginStateRoot,
-    pluginCodeRoot,
-    authoringSkillPath: dashboardPluginAuthoringSkill,
-    referenceSkillPath: dashboardReferenceSkill,
-    git,
-    enabled: enabledFeatures.has('workers'),
-  })
-  antigravityWorker = new AntigravityWorkerAdapter({
-    workspace,
-    git,
-    enabled: enabledFeatures.has('workers'),
-  })
-  codexWorker = new CodexWorkerAdapter({
-    workspace,
-    git,
-    enabled: enabledFeatures.has('workers'),
-  })
-  claudeWorker = new ClaudeWorkerAdapter({
-    workspace,
-    git,
-    enabled: enabledFeatures.has('workers'),
-  })
-  workers = new WorkerCoordinator({
-    storePath: workerStorePath,
-    archivePath: workerArchivePath,
-    adapters: [subPi, antigravityWorker, codexWorker, claudeWorker],
-    rulesService: workerRules,
-    bounds: workerBounds,
-    primaryDefaults: async () => {
-      const snapshot = await state()
-      const model = snapshot.model && typeof snapshot.model === 'object' ? snapshot.model as Record<string, unknown> : undefined
-      return {
-        ...(model && typeof model.provider === 'string' && typeof model.id === 'string' ? { model: { provider: model.provider, id: model.id } } : {}),
-        ...(typeof snapshot.thinkingLevel === 'string' ? { thinkingLevel: snapshot.thinkingLevel } : {}),
-      }
-    },
-  })
+  workers = new WorkerSupervisorClient(workerSupervisorConfig())
 
   rpcArgs = ['--mode', 'rpc', '--continue', '--name', 'Pi Dashboard', '--extension', runtimeInfoExtension, '--extension', curatedMemoryExtension, '--extension', memoryCheckpointExtension, '--extension', pluginToolsExtension, ...(enabledFeatures.has('workers') ? ['--extension', workersExtension] : []), '--session-dir', currentRpcSessionDir]
   rpc = registerRpcListeners(new PiRpcProcess({
@@ -692,12 +630,13 @@ async function handleHttp(request: IncomingMessage, response: ServerResponse): P
         mode: typeof body.mode === 'string' ? body.mode : undefined,
         prompt: typeof body.prompt === 'string' ? body.prompt : undefined,
         bounds: body.bounds && typeof body.bounds === 'object' ? body.bounds as any : undefined,
+        submissionId: typeof body.submissionId === 'string' ? body.submissionId : undefined,
       }))
       return
     }
     const internalTaskMatch = url.pathname.match(/^\/internal\/workers\/tasks\/([^/]+)$/)
     if (request.method === 'GET' && internalTaskMatch) {
-      const task = workers.get(decodeURIComponent(internalTaskMatch[1]))
+      const task = await workers.get(decodeURIComponent(internalTaskMatch[1]))
       json(response, task ? 200 : 404, task ?? { error: 'Worker task not found' })
       return
     }
@@ -1051,6 +990,7 @@ async function handleHttp(request: IncomingMessage, response: ServerResponse): P
         ? { provider: String((body.model as any).provider), id: String((body.model as any).id) }
         : undefined,
       thinkingLevel: typeof body.thinkingLevel === 'string' ? body.thinkingLevel : undefined,
+      submissionId: typeof body.submissionId === 'string' ? body.submissionId : undefined,
     })
     record({ category: 'system', type: 'worker_task_started', severity: 'info', summary: `Started ${task.mode} task with ${task.providerName}`, sessionId: currentSessionId, data: { taskId: task.id, providerId: task.providerId, mode: task.mode } })
     json(response, 202, task)
@@ -1112,16 +1052,16 @@ async function handleHttp(request: IncomingMessage, response: ServerResponse): P
   }
   if (request.method === 'POST' && url.pathname === '/api/workers/config') {
     const body = await readJsonBody(request)
-    await workerRules.updateConfig(body)
+    const next = await workers.updateConfig(body)
     record({ category: 'system', type: 'worker_config_updated', severity: 'info', summary: 'Updated global worker configuration', sessionId: currentSessionId })
-    json(response, 200, await workers.snapshot())
+    json(response, 200, next)
     return
   }
   const workerRulePostMatch = url.pathname.match(/^\/api\/workers\/rules\/([^/]+)$/)
   if (request.method === 'POST' && workerRulePostMatch) {
     const ruleId = decodeURIComponent(workerRulePostMatch[1])
     const body = await readJsonBody(request)
-    const saved = await workerRules.saveRule(ruleId, String(body.content ?? ''))
+    const saved = await workers.saveRule(ruleId, String(body.content ?? ''))
     record({ category: 'system', type: 'worker_rule_saved', severity: 'info', summary: `Updated worker rule "${saved.title}"`, sessionId: currentSessionId })
     json(response, 200, saved)
     return
@@ -1131,6 +1071,24 @@ async function handleHttp(request: IncomingMessage, response: ServerResponse): P
     const task = await workers.cancel(decodeURIComponent(workerCancelMatch[1]))
     record({ category: 'system', type: 'worker_task_cancelled', severity: 'warning', summary: `Cancelled ${task.providerName} task`, sessionId: task.sessionId, data: { taskId: task.id } })
     json(response, 200, task)
+    return
+  }
+  const workerContinueMatch = url.pathname.match(/^\/api\/workers\/tasks\/([^/]+)\/continue$/)
+  if (request.method === 'POST' && workerContinueMatch) {
+    const body = await readJsonBody(request)
+    const task = await workers.continueTask(
+      decodeURIComponent(workerContinueMatch[1]),
+      typeof body.prompt === 'string' ? body.prompt : '',
+      typeof body.mode === 'string' ? body.mode : undefined,
+      body.forceHandoff === true,
+    )
+    record({ category: 'system', type: 'worker_task_continued', severity: 'info', summary: `Continued ${task.providerName} task`, sessionId: task.sessionId, data: { taskId: task.id, runId: task.currentRunId ?? '' } })
+    json(response, 202, task)
+    return
+  }
+  const workerChangesMatch = url.pathname.match(/^\/api\/workers\/tasks\/([^/]+)\/changes$/)
+  if (request.method === 'GET' && workerChangesMatch) {
+    json(response, 200, await workers.changes(decodeURIComponent(workerChangesMatch[1]), url.searchParams.get('runId') ?? undefined))
     return
   }
   if (request.method === 'POST' && url.pathname === '/api/workers/archive') {
@@ -1340,10 +1298,11 @@ async function handleHttp(request: IncomingMessage, response: ServerResponse): P
     return
   }
   if (url.pathname === '/api/workers/archive') {
+    const workerSnapshot = await workers.snapshot()
     json(response, 200, {
-      tasks: workers.getArchivedTasks(),
-      archivedCount: workers.archivedCount,
-      archivePath: workers.archivePath,
+      tasks: await workers.getArchivedTasks(),
+      archivedCount: workerSnapshot.archivedCount,
+      archivePath: workerSnapshot.archivePath,
     })
     return
   }
@@ -1360,7 +1319,7 @@ async function handleHttp(request: IncomingMessage, response: ServerResponse): P
   }
   const workerTaskMatch = url.pathname.match(/^\/api\/workers\/tasks\/([^/]+)$/)
   if (workerTaskMatch) {
-    const task = workers.get(decodeURIComponent(workerTaskMatch[1]))
+    const task = await workers.get(decodeURIComponent(workerTaskMatch[1]))
     json(response, task ? 200 : 404, task ?? { error: 'Worker task not found' })
     return
   }
@@ -1682,7 +1641,7 @@ async function shutdown(signal: string): Promise<void> {
   record({ category: 'system', type: 'server_stop', severity: 'info', summary: `Dashboard backend stopped (${signal})`, sessionId: currentSessionId })
   for (const client of clients) client.close(1001, 'Server shutting down')
   webSocketServer.close()
-  await Promise.all([rpc.stop(), providerLogin.stop(), ...(enabledFeatures.has('workers') ? [workers.shutdown()] : [])])
+  await Promise.all([rpc.stop(), providerLogin.stop(), ...(enabledFeatures.has('workers') ? [workers.close()] : [])])
   await activity.flush()
   process.exit(0)
 }

@@ -5,6 +5,8 @@ import { join } from 'node:path'
 import { createInterface } from 'node:readline'
 import type { GitService, GitStatusEntry } from './git-service.js'
 import { captureProcessIdentity, processGroupOptions, resolveExecutable, terminateProcessTree, type ProcessIdentity } from './process-control.js'
+import { effectiveWorkerPrompt } from './worker-handoff.js'
+import { WorkerRunError } from './worker-run-error.js'
 import type { WorkerAdapter, WorkerChangedFile, WorkerMode, WorkerProviderStatus, WorkerRunHooks, WorkerRunInput, WorkerRunOutput } from './worker-types.js'
 
 function boundedText(value: string, limit: number): { text: string; truncated: boolean } {
@@ -86,6 +88,7 @@ export class CodexWorkerAdapter implements WorkerAdapter {
       statusLabel: ready ? 'Installed and signed in' : this.options.enabled ? 'Installed; select Connect to sign in' : 'Disabled by configuration',
       modes: ['research', 'review', 'implement'] as WorkerMode[],
       enabled: this.options.enabled,
+      capabilities: { nativeSessions: true, continuation: true, structuredEvents: true, cancellation: true, modelSelection: true },
       loginCommand: 'exec codex login --device-auth',
       manageCommand: 'exec codex',
     }
@@ -95,14 +98,18 @@ export class CodexWorkerAdapter implements WorkerAdapter {
     if (this.active) throw new Error('Codex CLI is already running another task')
     const before = (await this.options.git.status()).entries
     const command = resolveExecutable('codex')
-    const args = [
-      'exec',
-      '-C', this.options.workspace,
-      '--add-dir', this.options.workspace,
-      '--json', '--ephemeral', '--skip-git-repo-check',
-      '--sandbox', input.mode === 'implement' ? 'workspace-write' : 'read-only',
-      codexPrompt(input, this.options.workspace),
-    ]
+    const prompt = effectiveWorkerPrompt(input)
+    const args = input.continuation?.kind === 'native' && input.continuation.sessionId
+      ? ['exec', 'resume', '--json', '--skip-git-repo-check', ...(input.model?.id ? ['--model', input.model.id] : []), input.continuation.sessionId, prompt]
+      : [
+          'exec',
+          '-C', this.options.workspace,
+          '--add-dir', this.options.workspace,
+          '--json', '--skip-git-repo-check',
+          ...(input.model?.id ? ['--model', input.model.id] : []),
+          '--sandbox', input.mode === 'implement' ? 'workspace-write' : 'read-only',
+          codexPrompt({ ...input, prompt }, this.options.workspace),
+        ]
 
     const child = spawn(command, args, {
       cwd: this.options.workspace,
@@ -112,7 +119,9 @@ export class CodexWorkerAdapter implements WorkerAdapter {
       ...processGroupOptions(),
     })
 
-    this.active = { taskId: input.taskId, child, identity: captureProcessIdentity(child) }
+    const identity = captureProcessIdentity(child)
+    this.active = { taskId: input.taskId, child, identity }
+    void identity.then((value) => value && hooks.onProcess?.(value)).catch(() => undefined)
     let turns = 0
     let result = ''
     let stderr = ''
@@ -121,6 +130,7 @@ export class CodexWorkerAdapter implements WorkerAdapter {
     lines.on('line', (line) => {
       let event: Record<string, unknown>
       try { event = JSON.parse(line) as Record<string, unknown> } catch { return }
+      if (event.type === 'thread.started' && typeof event.thread_id === 'string') void hooks.onSession(event.thread_id)
       if (event.type === 'turn.started') {
         turns += 1
         void hooks.onProgress(`Codex is working (turn ${turns}).`, turns)
@@ -132,7 +142,7 @@ export class CodexWorkerAdapter implements WorkerAdapter {
       }
       if (event.type === 'item.completed') {
         const item = event.item as Record<string, unknown> | undefined
-        if (item?.type === 'agent_message' && typeof item.text === 'string') result = item.text
+        if (item?.type === 'agent_message' && typeof item.text === 'string') result = boundedText(item.text, Math.max(input.bounds.resultLimitBytes, 64 * 1024)).text
       }
       if (event.type === 'error' && typeof event.message === 'string') stderr = `${stderr}\n${event.message}`.trim()
     })
@@ -142,7 +152,10 @@ export class CodexWorkerAdapter implements WorkerAdapter {
         child.once('error', reject)
         child.once('close', resolve)
       })
-      if (exitCode !== 0 && !result) throw new Error(`Codex CLI exited with code ${exitCode ?? 'unknown'}${stderr.trim() ? `: ${stderr.trim()}` : ''}`)
+      if (exitCode !== 0) {
+        const partial = result ? boundedText(result, input.bounds.resultLimitBytes) : undefined
+        throw new WorkerRunError(`Codex CLI exited with code ${exitCode ?? 'unknown'}${stderr.trim() ? `: ${stderr.trim()}` : ''}`, partial?.text, partial?.truncated)
+      }
       const bounded = boundedText(result || 'Codex finished without a text result.', input.bounds.resultLimitBytes)
       const after = (await this.options.git.status()).entries
       const files = changedFiles(before, after)
