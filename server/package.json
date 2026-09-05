@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc --noEmit",
+    "test": "tsx --test test/*.test.ts",
     "start": "tsx src/index.ts"
   },
   "dependencies": {

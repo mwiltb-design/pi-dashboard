@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import type { GitService, GitStatusEntry } from './git-service.js'
-import { processGroupOptions, resolveExecutable, terminateProcess } from './process-control.js'
+import { captureProcessIdentity, processGroupOptions, resolveExecutable, terminateProcessTree, type ProcessIdentity } from './process-control.js'
 import type { WorkerAdapter, WorkerChangedFile, WorkerMode, WorkerProviderStatus, WorkerRunHooks, WorkerRunInput, WorkerRunOutput } from './worker-types.js'
 
 function boundedText(value: string, limit: number): { text: string; truncated: boolean } {
@@ -68,7 +68,7 @@ export interface AntigravityWorkerOptions {
 }
 
 export class AntigravityWorkerAdapter implements WorkerAdapter {
-  private active?: { taskId: string; child: ChildProcess }
+  private active?: { taskId: string; child: ChildProcess; identity: Promise<ProcessIdentity | undefined> }
 
   constructor(private readonly options: AntigravityWorkerOptions) {}
 
@@ -115,7 +115,7 @@ export class AntigravityWorkerAdapter implements WorkerAdapter {
       ...processGroupOptions(),
     })
 
-    this.active = { taskId: input.taskId, child }
+    this.active = { taskId: input.taskId, child, identity: captureProcessIdentity(child) }
     await hooks.onProgress(`Antigravity is working on ${input.mode} task.`, 1)
     let stdout = ''
     let stderr = ''
@@ -152,7 +152,6 @@ export class AntigravityWorkerAdapter implements WorkerAdapter {
   async cancel(taskId: string): Promise<void> {
     const active = this.active
     if (active?.taskId !== taskId) return
-    terminateProcess(active.child, 'SIGTERM')
-    setTimeout(() => terminateProcess(active.child, 'SIGKILL'), 2_000).unref()
+    await terminateProcessTree(active.child, { identity: await active.identity })
   }
 }

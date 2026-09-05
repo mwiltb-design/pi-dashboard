@@ -14,6 +14,21 @@ interface WorkerStore {
   tasks: WorkerTask[]
 }
 
+interface ActiveRun {
+  taskId: string
+  adapter: WorkerAdapter
+  cancelRequested: boolean
+  timedOut: boolean
+  timer?: NodeJS.Timeout
+  progressTimer?: NodeJS.Timeout
+  pendingProgress?: { progress: string; turns: number }
+  lastProgressWriteAt?: number
+  completion: Promise<void>
+  resolveCompletion: () => void
+}
+
+const TERMINAL_STATUSES = new Set<WorkerTask['status']>(['completed', 'failed', 'cancelled', 'timed-out'])
+
 export class WorkerError extends Error {
   constructor(message: string, readonly status = 400) {
     super(message)
@@ -34,8 +49,10 @@ export class WorkerCoordinator extends EventEmitter {
   private archivedTasks: WorkerTask[] = []
   private activeTaskId?: string
   private activeAdapter?: WorkerAdapter
-  private timer?: NodeJS.Timeout
+  private activeRun?: ActiveRun
+  private admissionChain = Promise.resolve()
   private saveChain = Promise.resolve()
+  private shuttingDown = false
 
   constructor(private readonly options: WorkerCoordinatorOptions) {
     super()
@@ -231,39 +248,40 @@ export class WorkerCoordinator extends EventEmitter {
     model?: { provider: string; id: string }
     thinkingLevel?: string
   }): Promise<WorkerTask> {
-    if (this.activeTaskId) throw new WorkerError('A worker is already executing another task', 409)
+    return this.serializeAdmission(async () => {
+      if (this.shuttingDown) throw new WorkerError('The worker coordinator is shutting down', 503)
 
-    const providerId = input.providerId || 'sub-pi'
-    const adapter = this.getAdapter(providerId)
-    if (!adapter) throw new WorkerError(`Worker provider '${providerId}' is not available`, 404)
+      const providerId = input.providerId || 'sub-pi'
+      const adapter = this.getAdapter(providerId)
+      if (!adapter) throw new WorkerError(`Worker provider '${providerId}' is not available`, 404)
 
-    const config = await this.options.rulesService.loadConfig()
-    if (config.providersEnabled[providerId] === false) {
-      throw new WorkerError(`Worker provider '${adapter.provider.name}' is currently disabled`, 403)
-    }
+      const config = await this.options.rulesService.loadConfig()
+      if (config.providersEnabled[providerId] === false) {
+        throw new WorkerError(`Worker provider '${adapter.provider.name}' is currently disabled`, 403)
+      }
 
-    if (adapter.provider.status !== 'ready') {
-      throw new WorkerError(adapter.provider.statusLabel || `Worker '${adapter.provider.name}' is not ready`, 409)
-    }
+      if (adapter.provider.status !== 'ready') {
+        throw new WorkerError(adapter.provider.statusLabel || `Worker '${adapter.provider.name}' is not ready`, 409)
+      }
 
-    if (!WORKER_MODES.includes(input.mode as WorkerMode)) throw new WorkerError('Choose Research, Review, or Implement mode')
-    const mode = input.mode as WorkerMode
-    if (!adapter.provider.modes.includes(mode)) {
-      throw new WorkerError(`${adapter.provider.name} does not support ${mode} mode`, 400)
-    }
+      if (!WORKER_MODES.includes(input.mode as WorkerMode)) throw new WorkerError('Choose Research, Review, or Implement mode')
+      const mode = input.mode as WorkerMode
+      if (!adapter.provider.modes.includes(mode)) {
+        throw new WorkerError(`${adapter.provider.name} does not support ${mode} mode`, 400)
+      }
 
-    const prompt = input.prompt?.trim() ?? ''
-    if (!prompt) throw new WorkerError('Describe a bounded task for the worker')
-    if (prompt.length > MAX_PROMPT_LENGTH) throw new WorkerError(`Worker prompts are limited to ${MAX_PROMPT_LENGTH.toLocaleString()} characters`, 413)
+      const prompt = input.prompt?.trim() ?? ''
+      if (!prompt) throw new WorkerError('Describe a bounded task for the worker')
+      if (prompt.length > MAX_PROMPT_LENGTH) throw new WorkerError(`Worker prompts are limited to ${MAX_PROMPT_LENGTH.toLocaleString()} characters`, 413)
 
-    const computedBounds: WorkerBounds = {
-      turnLimit: Math.min(30, Math.max(1, input.bounds?.turnLimit ?? config.defaultBounds.turnLimit ?? this.options.bounds.turnLimit)),
-      timeoutMs: Math.min(30 * 60_000, Math.max(60_000, input.bounds?.timeoutMs ?? config.defaultBounds.timeoutMs ?? this.options.bounds.timeoutMs)),
-      resultLimitBytes: Math.min(64 * 1024, Math.max(1024, input.bounds?.resultLimitBytes ?? config.defaultBounds.resultLimitBytes ?? this.options.bounds.resultLimitBytes)),
-    }
+      const computedBounds: WorkerBounds = {
+        turnLimit: Math.min(30, Math.max(1, input.bounds?.turnLimit ?? config.defaultBounds.turnLimit ?? this.options.bounds.turnLimit)),
+        timeoutMs: Math.min(30 * 60_000, Math.max(60_000, input.bounds?.timeoutMs ?? config.defaultBounds.timeoutMs ?? this.options.bounds.timeoutMs)),
+        resultLimitBytes: Math.min(64 * 1024, Math.max(1024, input.bounds?.resultLimitBytes ?? config.defaultBounds.resultLimitBytes ?? this.options.bounds.resultLimitBytes)),
+      }
 
-    const now = new Date().toISOString()
-    const task: WorkerTask = {
+      const now = new Date().toISOString()
+      const task: WorkerTask = {
       id: randomUUID(),
       providerId: adapter.provider.id,
       providerName: adapter.provider.name,
@@ -279,38 +297,88 @@ export class WorkerCoordinator extends EventEmitter {
       archived: false,
       ...(input.model ? { model: input.model } : {}),
       ...(input.thinkingLevel ? { thinkingLevel: input.thinkingLevel } : {}),
-    }
+      }
 
-    this.tasks.unshift(task)
-    this.enforceRetentionLimit()
-    this.activeTaskId = task.id
-    this.activeAdapter = adapter
-    await this.save()
-    this.emit('changed', task)
-    void this.execute(task, adapter)
-    return { ...task, changedFiles: [] }
+      this.tasks.unshift(task)
+      this.enforceRetentionLimit()
+      await this.save()
+      this.emit('changed', task)
+      this.schedule()
+      return { ...task, changedFiles: [] }
+    })
   }
 
   async cancel(id: string): Promise<WorkerTask> {
     const task = this.tasks.find((candidate) => candidate.id === id)
     if (!task) throw new WorkerError('Worker task not found', 404)
-    if (this.activeTaskId !== id || (task.status !== 'queued' && task.status !== 'running')) throw new WorkerError('This worker task is not running', 409)
-    if (this.activeAdapter) {
-      await this.activeAdapter.cancel(id)
+    if (task.status !== 'queued' && task.status !== 'running') throw new WorkerError('This worker task is not running', 409)
+    const run = this.activeRun?.taskId === id ? this.activeRun : undefined
+    if (!run) {
+      await this.finish(task, 'cancelled', { progress: 'Cancelled by the user before it started.' })
+      return { ...task, changedFiles: [...task.changedFiles] }
     }
-    await this.finish(task, 'cancelled', { progress: 'Cancelled by the user.' })
+    run.cancelRequested = true
+    let cleanupError: unknown
+    try {
+      await run.adapter.cancel(id)
+    } catch (error) {
+      cleanupError = error
+    }
+    await this.finish(task, cleanupError ? 'failed' : 'cancelled', {
+      progress: cleanupError ? 'Cancellation requested, but worker cleanup could not be confirmed.' : 'Cancelled by the user.',
+      ...(cleanupError ? { error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError) } : {}),
+    })
+    if (!cleanupError) await run.completion
     return { ...task, changedFiles: [...task.changedFiles] }
   }
 
   async shutdown(): Promise<void> {
-    if (!this.activeTaskId || !this.activeAdapter) return
-    await this.activeAdapter.cancel(this.activeTaskId).catch(() => undefined)
+    this.shuttingDown = true
+    const run = this.activeRun
+    if (!run) return
+    run.cancelRequested = true
+    const task = this.tasks.find((candidate) => candidate.id === run.taskId)
+    let cleanupError: unknown
+    try {
+      await run.adapter.cancel(run.taskId)
+    } catch (error) {
+      cleanupError = error
+    }
+    if (task) {
+      await this.finish(task, cleanupError ? 'failed' : 'cancelled', {
+        progress: cleanupError ? 'Dashboard shutdown could not confirm worker cleanup.' : 'Stopped because the Dashboard shut down.',
+        ...(cleanupError ? { error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError) } : {}),
+      })
+    }
+    await run.completion
   }
 
-  private async execute(task: WorkerTask, adapter: WorkerAdapter): Promise<void> {
+  private schedule(): void {
+    if (this.shuttingDown || this.activeRun) return
+    const task = [...this.tasks].reverse().find((candidate) => candidate.status === 'queued')
+    if (!task) return
+    const adapter = this.getAdapter(task.providerId)
+    if (!adapter) {
+      void this.finish(task, 'failed', { progress: 'Worker provider is no longer available.', error: `Worker provider '${task.providerId}' is not available` })
+        .then(() => this.schedule())
+        .catch((error) => console.error('Unable to record unavailable worker provider:', error))
+      return
+    }
+    let resolveCompletion: () => void = () => {}
+    const completion = new Promise<void>((resolve) => { resolveCompletion = resolve })
+    const run: ActiveRun = { taskId: task.id, adapter, cancelRequested: false, timedOut: false, completion, resolveCompletion }
+    this.activeRun = run
+    this.activeTaskId = task.id
+    this.activeAdapter = adapter
+    void this.execute(task, adapter, run).catch((error) => console.error('Worker lifecycle failed:', error))
+  }
+
+  private async execute(task: WorkerTask, adapter: WorkerAdapter, run: ActiveRun): Promise<void> {
     try {
       const defaults = await this.options.primaryDefaults()
+      if (run.cancelRequested) return
       const ruleContext = await this.options.rulesService.getInjectedRulesForWorker(adapter.provider.id)
+      if (run.cancelRequested) return
 
       await this.update(task, {
         status: 'running',
@@ -318,11 +386,19 @@ export class WorkerCoordinator extends EventEmitter {
         startedAt: new Date().toISOString(),
       })
 
-      this.timer = setTimeout(() => {
-        if (this.activeTaskId !== task.id) return
-        void adapter.cancel(task.id).finally(() =>
-          this.finish(task, 'timed-out', { progress: 'Stopped at the configured runtime limit.', error: 'Worker runtime limit reached.' }))
+      run.timer = setTimeout(() => {
+        if (this.activeRun !== run || TERMINAL_STATUSES.has(task.status)) return
+        run.cancelRequested = true
+        run.timedOut = true
+        void adapter.cancel(task.id)
+          .then(() => this.finish(task, 'timed-out', { progress: 'Stopped at the configured runtime limit.', error: 'Worker runtime limit reached.' }))
+          .catch((error) => this.finish(task, 'timed-out', {
+            progress: 'Runtime limit reached; worker cleanup reported an error.',
+            error: `Worker runtime limit reached. Cleanup error: ${error instanceof Error ? error.message : String(error)}`,
+          }))
+          .catch((error) => console.error('Unable to record worker timeout:', error))
       }, task.bounds.timeoutMs)
+      run.timer.unref()
 
       const output = await adapter.run({
         taskId: task.id,
@@ -335,11 +411,12 @@ export class WorkerCoordinator extends EventEmitter {
         ...(task.model ? { model: task.model } : {}),
         ...(task.thinkingLevel ? { thinkingLevel: task.thinkingLevel } : {}),
       }, {
-        onSession: (sessionId) => this.update(task, { sessionId }),
-        onProgress: (progress, turns) => this.update(task, { progress, turns }),
+        onSession: (sessionId) => this.safeUpdate(task, { sessionId }),
+        onProgress: (progress, turns) => this.queueProgress(run, task, progress, turns),
       })
 
-      if (this.activeTaskId !== task.id) return
+      if (this.activeRun !== run || run.cancelRequested || TERMINAL_STATUSES.has(task.status)) return
+      await this.flushProgress(run, task)
       await this.finish(task, 'completed', {
         progress: `${adapter.provider.name} completed successfully. Primary PI remains responsible for review.`,
         result: output.result,
@@ -348,10 +425,56 @@ export class WorkerCoordinator extends EventEmitter {
         resultEnvelope: output.resultEnvelope,
       })
     } catch (error) {
-      if (this.activeTaskId !== task.id) return
+      if (this.activeRun !== run || TERMINAL_STATUSES.has(task.status)) return
       const message = error instanceof Error ? error.message : `${adapter.provider.name} failed`
-      await this.finish(task, 'failed', { progress: `${adapter.provider.name} could not complete the task.`, error: message })
+      await this.finish(task, run.timedOut ? 'timed-out' : run.cancelRequested ? 'cancelled' : 'failed', {
+        progress: run.timedOut ? 'Stopped at the configured runtime limit.' : run.cancelRequested ? 'Cancelled by the user.' : `${adapter.provider.name} could not complete the task.`,
+        ...(run.cancelRequested ? {} : { error: message }),
+      })
+    } finally {
+      if (run.timer) clearTimeout(run.timer)
+      if (run.progressTimer) clearTimeout(run.progressTimer)
+      if (this.activeRun === run) {
+        this.activeRun = undefined
+        this.activeTaskId = undefined
+        this.activeAdapter = undefined
+      }
+      run.resolveCompletion()
+      this.schedule()
     }
+  }
+
+  private async safeUpdate(task: WorkerTask, patch: Partial<WorkerTask>): Promise<void> {
+    try {
+      await this.update(task, patch)
+    } catch (error) {
+      console.error(`Unable to persist worker progress for ${task.id}:`, error)
+    }
+  }
+
+  private queueProgress(run: ActiveRun, task: WorkerTask, progress: string, turns: number): void {
+    if (this.activeRun !== run || TERMINAL_STATUSES.has(task.status)) return
+    run.pendingProgress = { progress: progress.slice(0, 2_000), turns }
+    this.scheduleProgressFlush(run, task)
+  }
+
+  private scheduleProgressFlush(run: ActiveRun, task: WorkerTask): void {
+    if (!run.pendingProgress || run.progressTimer) return
+    const delay = Math.max(0, 250 - (Date.now() - (run.lastProgressWriteAt ?? 0)))
+    run.progressTimer = setTimeout(() => {
+      run.progressTimer = undefined
+      void this.flushProgress(run, task)
+    }, delay)
+    run.progressTimer.unref()
+  }
+
+  private async flushProgress(run: ActiveRun, task: WorkerTask): Promise<void> {
+    const pending = run.pendingProgress
+    run.pendingProgress = undefined
+    if (!pending || this.activeRun !== run || TERMINAL_STATUSES.has(task.status)) return
+    run.lastProgressWriteAt = Date.now()
+    await this.safeUpdate(task, pending)
+    this.scheduleProgressFlush(run, task)
   }
 
   private async update(task: WorkerTask, patch: Partial<WorkerTask>): Promise<void> {
@@ -362,16 +485,17 @@ export class WorkerCoordinator extends EventEmitter {
   }
 
   private async finish(task: WorkerTask, status: WorkerTask['status'], patch: Partial<WorkerTask>): Promise<void> {
-    if (this.timer) clearTimeout(this.timer)
-    this.timer = undefined
-    if (this.activeTaskId === task.id) {
-      this.activeTaskId = undefined
-      this.activeAdapter = undefined
-    }
+    if (TERMINAL_STATUSES.has(task.status)) return
     Object.assign(task, patch, { status, finishedAt: new Date().toISOString(), updatedAt: new Date().toISOString() })
     this.enforceRetentionLimit()
     await this.save()
     this.emit('changed', task)
+  }
+
+  private serializeAdmission<T>(operation: () => Promise<T>): Promise<T> {
+    const result = this.admissionChain.then(operation, operation)
+    this.admissionChain = result.then(() => undefined, () => undefined)
+    return result
   }
 
   private async save(): Promise<void> {

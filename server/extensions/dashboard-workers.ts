@@ -6,6 +6,8 @@ const token = process.env.PI_DASHBOARD_WORKER_INTERNAL_TOKEN ?? ''
 const port = Number(process.env.PORT ?? 4317)
 const MAX_RESPONSE_BYTES = 64 * 1024
 const POLL_MS = 1_000
+const MAX_DELEGATE_WAIT_MS = 31 * 60_000
+const CLEANUP_GRACE_MS = 30_000
 
 function request(method: string, path: string, body?: unknown): Promise<Record<string, unknown>> {
   const payload = body === undefined ? Buffer.alloc(0) : Buffer.from(JSON.stringify(body))
@@ -93,7 +95,28 @@ export default function dashboardWorkers(pi: ExtensionAPI) {
         const id = String(created.id ?? '')
         if (!id) throw new Error('Dashboard did not return a worker task ID')
         let task = created
+        const bounds = created.bounds as Record<string, unknown> | undefined
+        const taskTimeoutMs = typeof bounds?.timeoutMs === 'number' ? bounds.timeoutMs : MAX_DELEGATE_WAIT_MS - CLEANUP_GRACE_MS
+        const waitDeadline = Date.now() + Math.min(MAX_DELEGATE_WAIT_MS, Math.max(60_000, taskTimeoutMs + CLEANUP_GRACE_MS))
         while (task.status === 'queued' || task.status === 'running') {
+          if (Date.now() >= waitDeadline) {
+            const summary = {
+              taskId: id,
+              status: task.status,
+              waitEnded: true,
+              message: 'The bounded wait ended while the worker task is still active. Reconnect with this task ID instead of submitting it again.',
+              sessionId: task.sessionId,
+              result: task.result,
+              resultTruncated: task.resultTruncated,
+              changedFiles: task.changedFiles,
+              error: task.error,
+            }
+            return {
+              content: [{ type: 'text', text: JSON.stringify(summary, null, 2) }],
+              details: summary,
+              isError: false,
+            }
+          }
           await new Promise((resolve) => setTimeout(resolve, POLL_MS))
           task = await request('GET', `/internal/workers/tasks/${encodeURIComponent(id)}`)
         }
