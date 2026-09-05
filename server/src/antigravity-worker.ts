@@ -3,7 +3,9 @@ import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import type { GitService, GitStatusEntry } from './git-service.js'
-import { processGroupOptions, resolveExecutable, terminateProcess } from './process-control.js'
+import { captureProcessIdentity, processGroupOptions, resolveExecutable, terminateProcessTree, type ProcessIdentity } from './process-control.js'
+import { effectiveWorkerPrompt } from './worker-handoff.js'
+import { WorkerRunError } from './worker-run-error.js'
 import type { WorkerAdapter, WorkerChangedFile, WorkerMode, WorkerProviderStatus, WorkerRunHooks, WorkerRunInput, WorkerRunOutput } from './worker-types.js'
 
 function boundedText(value: string, limit: number): { text: string; truncated: boolean } {
@@ -46,7 +48,7 @@ Mode: ${input.mode}
 ${role}${rules}
 
 Task:
-${input.prompt}
+${effectiveWorkerPrompt(input)}
 
 Return a concise, structured summary of your findings and actions inside "${workspace}".`
 }
@@ -68,7 +70,7 @@ export interface AntigravityWorkerOptions {
 }
 
 export class AntigravityWorkerAdapter implements WorkerAdapter {
-  private active?: { taskId: string; child: ChildProcess }
+  private active?: { taskId: string; child: ChildProcess; identity: Promise<ProcessIdentity | undefined> }
 
   constructor(private readonly options: AntigravityWorkerOptions) {}
 
@@ -87,6 +89,7 @@ export class AntigravityWorkerAdapter implements WorkerAdapter {
       statusLabel: ready ? 'Installed and ready' : this.options.enabled ? 'Installed; select Connect to sign in' : 'Disabled by configuration',
       modes: ['research', 'review', 'implement'] as WorkerMode[],
       enabled: this.options.enabled,
+      capabilities: { nativeSessions: false, continuation: false, structuredEvents: false, cancellation: true, modelSelection: false },
       loginCommand: 'exec agy',
       manageCommand: 'exec agy',
     }
@@ -115,7 +118,9 @@ export class AntigravityWorkerAdapter implements WorkerAdapter {
       ...processGroupOptions(),
     })
 
-    this.active = { taskId: input.taskId, child }
+    const identity = captureProcessIdentity(child)
+    this.active = { taskId: input.taskId, child, identity }
+    void identity.then((value) => value && hooks.onProcess?.(value)).catch(() => undefined)
     await hooks.onProgress(`Antigravity is working on ${input.mode} task.`, 1)
     let stdout = ''
     let stderr = ''
@@ -128,7 +133,10 @@ export class AntigravityWorkerAdapter implements WorkerAdapter {
         child.once('close', resolve)
       })
       const output = stdout.trim()
-      if (exitCode !== 0 && !output) throw new Error(`Antigravity CLI exited with code ${exitCode ?? 'unknown'}${stderr.trim() ? `: ${stderr.trim()}` : ''}`)
+      if (exitCode !== 0) {
+        const partial = output ? boundedText(output, input.bounds.resultLimitBytes) : undefined
+        throw new WorkerRunError(`Antigravity CLI exited with code ${exitCode ?? 'unknown'}${stderr.trim() ? `: ${stderr.trim()}` : ''}`, partial?.text, partial?.truncated)
+      }
       const bounded = boundedText(output || stderr.trim() || 'Antigravity finished without a text result.', input.bounds.resultLimitBytes)
       const after = (await this.options.git.status()).entries
       const files = changedFiles(before, after)
@@ -152,7 +160,6 @@ export class AntigravityWorkerAdapter implements WorkerAdapter {
   async cancel(taskId: string): Promise<void> {
     const active = this.active
     if (active?.taskId !== taskId) return
-    terminateProcess(active.child, 'SIGTERM')
-    setTimeout(() => terminateProcess(active.child, 'SIGKILL'), 2_000).unref()
+    await terminateProcessTree(active.child, { identity: await active.identity })
   }
 }

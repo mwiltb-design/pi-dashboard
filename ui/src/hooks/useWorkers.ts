@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { apiFetch } from '../api'
 
 export type WorkerMode = 'research' | 'review' | 'implement'
-export type WorkerStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled' | 'timed-out'
+export type WorkerStatus = 'queued' | 'starting' | 'running' | 'cancelling' | 'completed' | 'failed' | 'cancelled' | 'timed-out' | 'interrupted'
 
 export interface WorkerBounds {
   timeoutMs: number
@@ -21,6 +21,39 @@ export interface WorkerProvider {
   enabled: boolean
   loginCommand?: string
   manageCommand?: string
+  capabilities?: {
+    nativeSessions: boolean
+    continuation: boolean
+    structuredEvents: boolean
+    cancellation: boolean
+    modelSelection: boolean
+  }
+}
+
+export interface WorkerRunRecord {
+  id: string
+  prompt: string
+  mode: WorkerMode
+  status: WorkerStatus
+  progress?: string
+  turns?: number
+  createdAt: string
+  updatedAt: string
+  startedAt?: string
+  finishedAt?: string
+  sessionId?: string
+  result?: string
+  resultTruncated?: boolean
+  error?: string
+  changedFiles: Array<{ path: string; state: string }>
+  continuationKind?: 'native' | 'handoff'
+}
+
+export interface WorkerChangeSet {
+  runId: string
+  files: Array<{ path: string; state: string; diff: string; truncated: boolean; warning?: string }>
+  incomplete: boolean
+  warning?: string
 }
 
 export interface WorkerResultEnvelope {
@@ -55,6 +88,14 @@ export interface WorkerTask {
   changedFiles: Array<{ path: string; state: string }>
   resultEnvelope?: WorkerResultEnvelope
   archived?: boolean
+  workspacePath?: string
+  currentRunId?: string
+  runs?: WorkerRunRecord[]
+  queuePosition?: number
+  providerCapabilities?: WorkerProvider['capabilities']
+  lastActivityAt?: string
+  elapsedMs?: number
+  cleanupOutcome?: string
 }
 
 export interface WorkerConfiguration {
@@ -164,6 +205,31 @@ export function useWorkers() {
     } finally {
       setBusy(false)
     }
+  }
+
+  async function continueTask(id: string, prompt: string, forceHandoff = false): Promise<boolean> {
+    setBusy(true)
+    try {
+      const task = await request<WorkerTask>(`/api/workers/tasks/${encodeURIComponent(id)}/continue`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ prompt, forceHandoff }),
+      })
+      setSelectedId(task.id)
+      setError('')
+      refresh()
+      return true
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Unable to continue worker task')
+      return false
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function loadChanges(id: string, runId?: string): Promise<WorkerChangeSet> {
+    const query = runId ? `?runId=${encodeURIComponent(runId)}` : ''
+    return request<WorkerChangeSet>(`/api/workers/tasks/${encodeURIComponent(id)}/changes${query}`)
   }
 
   async function updateConfig(updates: Partial<WorkerConfiguration>): Promise<boolean> {
@@ -281,6 +347,8 @@ export function useWorkers() {
     error,
     start,
     cancel,
+    continueTask,
+    loadChanges,
     updateConfig,
     saveRule,
     archiveTask,

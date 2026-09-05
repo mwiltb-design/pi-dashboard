@@ -1,7 +1,7 @@
 export const WORKER_MODES = ['research', 'review', 'implement'] as const
 export type WorkerMode = typeof WORKER_MODES[number]
 
-export const WORKER_STATUSES = ['queued', 'running', 'completed', 'failed', 'cancelled', 'timed-out'] as const
+export const WORKER_STATUSES = ['queued', 'starting', 'running', 'cancelling', 'completed', 'failed', 'cancelled', 'timed-out', 'interrupted'] as const
 export type WorkerStatus = typeof WORKER_STATUSES[number]
 
 export interface WorkerBounds {
@@ -13,6 +13,79 @@ export interface WorkerBounds {
 export interface WorkerChangedFile {
   path: string
   state: string
+}
+
+export interface WorkerProcessIdentity {
+  pid: number
+  creationTime?: string
+}
+
+export interface WorkerProviderCapabilities {
+  nativeSessions: boolean
+  continuation: boolean
+  structuredEvents: boolean
+  cancellation: boolean
+  modelSelection: boolean
+}
+
+export interface WorkerValidationOutcome {
+  command: string
+  exitCode: number
+  summary: string
+}
+
+export interface HandoffContext {
+  schemaVersion: number
+  taskId: string
+  previousRunId: string
+  provider: string
+  workspacePath: string
+  objective: string
+  summaryOfWork: string
+  lastVerifiedResult?: string
+  touchedFiles: Array<{ path: string; status: 'created' | 'modified' | 'deleted' }>
+  validationOutcomes: WorkerValidationOutcome[]
+  unfinishedWork: string[]
+  knownLimitationsOrErrors: string[]
+  recommendedNextStep?: string
+}
+
+export interface WorkerRunRecord {
+  id: string
+  prompt: string
+  mode: WorkerMode
+  status: WorkerStatus
+  progress?: string
+  turns?: number
+  createdAt: string
+  updatedAt: string
+  startedAt?: string
+  finishedAt?: string
+  sessionId?: string
+  result?: string
+  resultTruncated?: boolean
+  error?: string
+  changedFiles: WorkerChangedFile[]
+  workerProcess?: WorkerProcessIdentity
+  continuationKind?: 'native' | 'handoff'
+  lastActivityAt?: string
+  elapsedMs?: number
+  cleanupOutcome?: string
+}
+
+export interface WorkerFileDiff {
+  path: string
+  state: string
+  diff: string
+  truncated: boolean
+  warning?: string
+}
+
+export interface WorkerChangeSet {
+  runId: string
+  files: WorkerFileDiff[]
+  incomplete: boolean
+  warning?: string
 }
 
 export interface WorkerResultEnvelope {
@@ -47,6 +120,18 @@ export interface WorkerTask {
   changedFiles: WorkerChangedFile[]
   resultEnvelope?: WorkerResultEnvelope
   archived?: boolean
+  workspacePath?: string
+  currentRunId?: string
+  runs?: WorkerRunRecord[]
+  queuePosition?: number
+  workerProcess?: WorkerProcessIdentity
+  providerCapabilities?: WorkerProviderCapabilities
+  handoffContext?: HandoffContext
+  changeSets?: Record<string, WorkerChangeSet>
+  submissionId?: string
+  lastActivityAt?: string
+  elapsedMs?: number
+  cleanupOutcome?: string
 }
 
 export interface WorkerProviderStatus {
@@ -60,6 +145,7 @@ export interface WorkerProviderStatus {
   enabled: boolean
   loginCommand?: string
   manageCommand?: string
+  capabilities?: WorkerProviderCapabilities
 }
 
 export type DashboardStackPreset = 'basic' | 'developer' | 'business' | 'custom'
@@ -89,6 +175,7 @@ export interface WorkerRuleFile {
 
 export interface WorkerRunInput {
   taskId: string
+  runId?: string
   providerId: string
   mode: WorkerMode
   prompt: string
@@ -96,11 +183,17 @@ export interface WorkerRunInput {
   model?: { provider: string; id: string }
   thinkingLevel?: string
   ruleContext?: string
+  continuation?: {
+    kind: 'native' | 'handoff'
+    sessionId?: string
+    handoff?: HandoffContext
+  }
 }
 
 export interface WorkerRunHooks {
   onSession(sessionId: string): Promise<void> | void
   onProgress(progress: string, turns: number): Promise<void> | void
+  onProcess?(identity: WorkerProcessIdentity): Promise<void> | void
 }
 
 export interface WorkerRunOutput {
@@ -108,6 +201,8 @@ export interface WorkerRunOutput {
   resultTruncated: boolean
   changedFiles: WorkerChangedFile[]
   resultEnvelope?: WorkerResultEnvelope
+  exitCode?: number | null
+  signal?: NodeJS.Signals | null
 }
 
 export interface WorkerAdapter {
