@@ -17,6 +17,7 @@ These docs are reference material. Do not load them all by default. Read only th
 - For plugin authoring, plugin review, hosted plugin backends, Shared Notes-style storage, or Pi plugin tools, read [references/plugin-platform.md](references/plugin-platform.md), then use the `dashboard-plugin-authoring` skill when implementation is required.
 - For Google Cloud Run hosting, GCS persistent storage (`/data`), Vite/web app previewing, plugin limitations, compute resources, and scaling commands, read [references/cloud-run.md](references/cloud-run.md).
 - For install, startup scripts, Tailscale Serve, ports, sandboxed workspaces, updates, and backups, read [references/operations.md](references/operations.md).
+- For worker providers, queueing, cancellation, supervisor recovery, continuation, run history, or View changes, read [references/workers.md](references/workers.md).
 - For common broken states such as auth failures, plugin service errors, iframe/CSP errors, missing tools, Workers not starting, or Terminal issues, read [references/troubleshooting.md](references/troubleshooting.md).
 
 ## Rules

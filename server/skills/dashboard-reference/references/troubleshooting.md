@@ -70,6 +70,30 @@ Verify that the features are enabled in your dashboard profile or settings. Then
 chat, files, files-editor, sessions, skills, settings, plugins, terminal, workers
 ```
 
+Feature and provider selections save immediately, but enabling a service that was not loaded at startup can require a Dashboard restart. A CLI provider also needs its executable installed and its own authentication completed. Use **Manage** or **Login** on the Workers screen when available.
+
+## Worker Supervisor Pipe Is Unavailable
+
+Typical Windows message:
+
+```text
+connect ENOENT \\.\pipe\foci-supervisor-<project-hash>
+```
+
+The supervisor normally exits after two idle minutes and the next worker request starts it again. If this message repeats after one retry:
+
+1. Fully restart the Dashboard so the backend and supervisor client use the same installed source version.
+2. Confirm the active project has not changed between requests.
+3. Look for `worker-supervisor-config.json` and `worker-task-records/index.json` under that project's directory in `~/.pi-dashboard/projects/`.
+4. Check Activity / Diagnostics for a supervisor startup or persistence error.
+5. Do not delete task records or submit the same implementation repeatedly. Preserve the task ID and inspect existing project changes first.
+
+The named pipe is ephemeral and should not exist while the supervisor is stopped. Its absence alone does not mean task records were lost.
+
+## Worker Was Interrupted
+
+`interrupted` means the supervisor ended before the run reached a trustworthy final state. The Dashboard does not replay it. Inspect project changes, then Continue with the saved provider session when available, use a saved handoff, or start a deliberate new task.
+
 ## Verification Pattern
 
 When debugging:
@@ -78,4 +102,4 @@ When debugging:
 2. Verify auth status via `/api/auth/status` or the Settings tab.
 3. Verify backend activity logs in the Activity / Diagnostics panel.
 4. Verify the exact response headers involved.
-6. Reproduce through the API before blaming the plugin UI.
+5. Reproduce through the API before blaming the plugin UI.

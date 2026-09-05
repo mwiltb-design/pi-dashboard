@@ -466,7 +466,7 @@ async function systemSnapshot(): Promise<Record<string, unknown>> {
     security: {
       authenticationEnabled: auth.enabled,
       frontendExpectedOnLocalhost: originsLimitedToLocalhost,
-      backendNetworkScope: 'Bound strictly to 127.0.0.1 (Localhost)',
+      backendNetworkScope: `Listening on ${host}:${port}${['127.0.0.1', 'localhost', '::1'].includes(host) ? ' (local only)' : ''}`,
       processIsolation: 'Electron local-process isolation',
       workspaceIsolationEnforced: true,
       allowedOrigins: [...allowedOrigins],

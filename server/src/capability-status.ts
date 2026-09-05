@@ -40,17 +40,17 @@ export function workersCapabilityStatus(profile: DashboardProfileName, enabled: 
   return {
     id: 'workers',
     name: 'Workers',
-    description: 'Bounded delegation to a separate Sub PI session with Research, Review, and Implement modes.',
+    description: 'Durable bounded delegation to enabled Sub-PI, Antigravity, Codex, and Claude CLI workers.',
     enabled,
     status,
     statusLabel: status === 'ready'
-      ? 'Enabled; Sub PI runtime available'
+      ? 'Enabled; Pi runtime available; worker supervisor starts on demand'
       : status === 'unavailable'
         ? 'Enabled, but the Pi runtime is unavailable'
         : `Disabled in the ${profile} profile`,
     management: 'host-configuration',
     restartRequired: true,
-    dataPolicy: 'Disabling prevents new work and preserves saved task history and inspectable Pi sessions.',
+    dataPolicy: 'Disabling prevents new work and preserves task records, project files, and provider sessions.',
     windowsCommand: '.\\scripts\\configure-features.ps1',
     unixCommand: './scripts/configure-features.sh',
   }

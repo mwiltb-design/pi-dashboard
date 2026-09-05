@@ -1,16 +1,30 @@
-# Pi-Dashboard Operational Boundaries & Limitations
+# Pi Dashboard boundaries and limitations
 
-To ensure system stability, speed, and privacy, Pi-Dashboard operates within the following parameters:
+## Models and network access
 
-## 🛡️ Key Limitations
+- Provider token and context limits are controlled by the selected model/runtime.
+- Cloud providers and external CLI workers require their own network access and authentication.
+- The Dashboard does not increase subscription quotas or provider limits.
 
-1. **Context & Token Windows:**
-   * AI providers enforce hard token limits per request. Pi automatically optimizes and summarizes conversation history when sessions grow large.
-2. **File Size Boundaries:**
-   * Large binary files (videos, huge datasets > 10MB) are ignored by the AI context processor to prevent memory saturation.
-3. **Execution Isolation:**
-   * Workspace files are isolated to your selected project directory.
-   * Background app state (`USER.md`, global `MEMORY.md`, settings) is stored securely in your user profile directory (`%APPDATA%/.pi` or `~/.pi`) and never pollutes your project code.
-4. **Network & Offline Behavior:**
-   * When using cloud model providers (Anthropic, OpenAI, OpenRouter), an active internet connection is required.
-   * When using local model providers (Ollama, LM Studio), Pi operates 100% offline.
+## Files and execution
+
+- Project browsing and built-in file operations are confined to the selected workspace.
+- External worker CLIs run as local user processes. The Dashboard sets their workspace and instructions, but not every provider supplies an operating-system sandbox.
+- Research and Review modes are policy boundaries passed to workers. Review all external CLI output and file changes before accepting them.
+- Large, binary, generated, and likely sensitive files are excluded from worker change previews.
+
+## Worker limits
+
+- One delegated worker job executes at a time per project data directory; additional jobs queue.
+- The Dashboard enforces a 1-30 minute job deadline and bounds retained/displayed output.
+- Turn limits apply only to Sub-PI. External CLI activity counts are informational.
+- Native continuation is currently verified for Codex. Other providers use a new session with a saved handoff.
+- Per-run change previews require Git. Non-Git workspaces receive an explicit incomplete-tracking warning.
+- Text diffs are capped at 256 KB per file and 2 MB total.
+- Interrupted implementation work is never replayed automatically.
+
+## Local state
+
+- Dashboard state is stored under `~/.pi-dashboard/`; Pi state is normally under `~/.pi/agent/`.
+- Provider credentials and native session history remain in each provider CLI's own user directory.
+- Archiving a Dashboard task does not delete project files or provider history.

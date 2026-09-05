@@ -1,54 +1,50 @@
-# Foci / Pi Dashboard Overview
+# Foci / Pi Dashboard overview
 
-Foci Dashboard 2.0 is an autonomous, multi-agent AI collaboration platform and engineering workspace available in two deployment modes:
-1. **Google Cloud Run (Hosted Cloud Studio):** Fully containerized, serverless cloud workspace with persistent Google Cloud Storage (`/data`), Python 3.11 geospatial compute stack, and Lead Gemini ⇄ Worker autonomous delegation.
-2. **Native Desktop Application:** Local Electron + Node.js + React desktop app running directly on your workstation with local pseudo-terminal and optional Tailscale Serve remote connectivity.
+This repository contains the native desktop Dashboard built with Electron, Node.js, React, and Vite. A separately deployed hosted Foci service has its own runtime constraints; use `cloud-run.md` only for questions about that deployment.
 
-## Primary Product Shape
+## Main screens
 
-The desktop build includes:
+- **Chat:** streamed Pi conversations and model controls
+- **Files:** project browser, Git state, and text editor
+- **Terminal:** optional local pseudo-terminal
+- **App Previewer:** responsive workspace HTML and local development-server previews
+- **Sessions:** saved conversation history and session management
+- **Skills & Tools:** bundled and installed agent capabilities
+- **Workers:** durable bounded delegation to Sub-PI and enabled Antigravity, Codex, or Claude CLIs
+- **Plugins:** reviewed local plugin UI and optional hosted modules
+- **Settings:** system status, projects, remote access, feature presets, and provider selection
 
-- **Chat**: Multi-Model AI pairing with streaming diffs (Claude, GPT, Gemini, Ollama, OpenRouter).
-- **Files & Editor**: In-browser CodeMirror syntax-highlighted editor with line numbers and live saving.
-- **Native Terminal**: PowerShell / Bash pseudo-terminal via `node-pty`.
-- **App Previewer**: Live web app & HTML responsive iframe preview canvas with Desktop, Tablet, and Mobile viewports.
-- **Sessions**: Complete session history, compaction, and branching.
-- **Skills & Tools**: Extensible agent capabilities and documentations.
-- **Autonomous Workers**: Background delegation suite (**Sub-PI**, **Google Antigravity CLI**, **OpenAI Codex CLI**, and **Anthropic Claude CLI**) with 2-level markdown routing rules (`WORKERS.md` and `rules/*.md`).
-- **Sandboxed Project Manager**: Sandboxed workspaces under `~/Pi-Dashboards/`.
-- **Plugins**: Local runtime & custom tool suites (Developer, Business, Research).
-- **Remote Connectivity**: In-app Tailscale Serve manager.
-- **Settings & Experience Stacks**: One-click presets (**`★ User / Basic`**, **`⚡ Developer`**, and **`🏢 Business`**) with granular feature checkboxes.
+## Main processes
 
-## Main Processes
+- `electron/main.cjs` starts the desktop window and chooses available local UI/backend ports.
+- `server/src/index.ts` hosts the API, Pi RPC bridge, project services, sessions, plugins, terminal bridge, and a thin client for worker operations.
+- `server/src/worker-supervisor-process.ts` is started on demand per project data directory. It owns the durable worker queue and provider process lifecycle independently of a browser connection.
+- `ui/src/` is the React/Vite interface and proxies API/WebSocket requests to the backend.
 
-- `Electron Shell` (`electron/main.cjs`): native desktop window lifecycle and multi-instance port resolution.
-- `Dashboard Backend` (`server/src/index.ts`): Node.js service managing Pi RPC, project files, sessions, skills, tools, workers, preview tunneling, and remote access. Bound strictly to `127.0.0.1:4317`.
-- `Dashboard UI` (`ui/src/`): React + Vite frontend bound strictly to `127.0.0.1:5173`. Proxies `/api`, `/ws`, and `/plugin-assets` to the backend.
+The desktop launcher binds both services to `127.0.0.1`. Directly starting the backend without the launcher must set `HOST=127.0.0.1` when local-only binding is required.
 
-The backend stores private Dashboard state in `~/.pi-dashboard/` (including worker configs and rules in `~/.pi-dashboard/workers/`) and provider credentials in `~/.pi/agent/`. Sandboxed user projects live in `~/Pi-Dashboards/<project>`.
+## Feature presets
 
-## Feature & Stack Model
+- **Basic:** core screens, Terminal, Workers, and Sub-PI
+- **Developer:** Basic plus App Previewer, Antigravity, Codex, and the worker rules editor
+- **Business:** Developer plus Claude and scheduled tasks
+- **Custom:** any supported optional feature/provider combination
 
-The dashboard provides dynamic, in-app stack presets and feature toggling:
+Selections are saved immediately. Enabling a service that was not loaded at startup can require a Dashboard restart; provider toggles within an already enabled Workers engine take effect without restarting. Installed CLI availability and provider authentication remain separate requirements.
 
-- **User / Basic Stack**: Core features + Terminal + Sub-PI solo worker.
-- **Developer Stack**: User Stack + Multi-Provider Workers (Antigravity & Codex) + Rules Editor + Live App Previewer.
-- **Business Stack**: Developer Stack + Claude CLI + Automated Tasks / Cron + Enterprise MCPs.
-- **Custom Mode**: Any individual feature or worker provider can be toggled on/off at will in Settings.
+## State locations
 
-## How Pi Should Use Dashboard Knowledge
+- `~/.pi-dashboard/`: preferences, remote access, global worker rules, plugins, and per-project Dashboard data
+- `~/.pi-dashboard/projects/<project-key>/worker-task-records/`: durable worker tasks and run history
+- `~/.pi/agent/`: Pi state and credentials unless configured otherwise
+- Provider-specific user directories: external CLI credentials and native sessions
+- `~/Pi-Dashboards/<project>/`: default project workspaces
 
-Pi should not guess Dashboard architecture from memory when the user asks about Dashboard behavior. Use this `dashboard-reference` skill, then read only the relevant reference file.
+## Security boundaries
 
-For plugin work, use `dashboard-plugin-authoring` after reading the plugin overview in this skill. That skill contains the implementation contract and exact files/tests to inspect.
-
-## Important Boundaries
-
-- The browser never receives the Dashboard auth token.
+- The browser does not receive the private Dashboard authentication token.
 - Mutating browser requests require an allowed origin.
-- Project files live outside the private Pi state volume.
-- Plugin UI enablement is separate from Pi read/write access.
-- Repository plugins are reviewed by exact source state.
-- Hosted plugin backends run inside the Dashboard backend process and use plugin-private storage.
-- Do not copy credentials, sessions, memories, or `.env` files into source or release artifacts.
+- Built-in file APIs validate paths against the active workspace.
+- Plugin UI enablement and Pi read/write grants are separate.
+- External worker CLIs run with local user permissions; workspace confinement is not an OS sandbox for every provider.
+- Credentials, session files, `.env` files, and private memory must not be copied into source or release artifacts.

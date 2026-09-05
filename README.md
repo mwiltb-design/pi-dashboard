@@ -1,119 +1,83 @@
-<div align="center">
+# Foci / Pi Dashboard
 
-# 🚀 Pi Dashboard
-### Next-Generation Native Desktop Agent Workspace & Multi-Provider Coordinator
+Foci is a privacy-focused desktop workspace for the Pi coding agent. It combines chat, project files, sessions, skills, plugins, an optional terminal and app previewer, and bounded background delegation to installed CLI workers.
 
-[![Website](https://img.shields.io/badge/Website-focidashboard.dev-157d78.svg)](https://focidashboard.dev/)
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](./LICENSE)
-[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-2ea44f)]()
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178c6)]()
-[![Electron](https://img.shields.io/badge/Electron-Desktop-47848f)]()
-[![React](https://img.shields.io/badge/React-18-61dafb)]()
+[Website](https://focidashboard.dev/) | [License](./LICENSE) | [Worker supervisor guide](./docs/worker-supervisor.md)
 
-<p align="center">
-  <b>A powerful, privacy-first desktop environment orchestrating the Pi Coding Agent alongside Google Antigravity, OpenAI Codex, and Anthropic Claude.</b><br/>
-  🌐 <a href="https://focidashboard.dev/"><b>focidashboard.dev</b></a> — Official website, documentation, and user guides.
-</p>
+## What is included
 
-<img src="./docs/assets/preview.png" alt="Pi Dashboard Preview" width="100%" />
+- **Chat and sessions:** streaming Pi conversations, model selection, saved history, branching, and compaction through the active Pi runtime.
+- **Files and editor:** workspace browsing and a CodeMirror editor with Git state indicators.
+- **Terminal:** an optional local pseudo-terminal powered by `node-pty`.
+- **App Previewer:** responsive previews for workspace HTML files and local development servers.
+- **Skills and plugins:** bundled skills plus reviewed local plugin tools and UI.
+- **Experience presets:** Basic, Developer, Business, or a custom selection of optional features and worker providers.
+- **Private remote access:** optional Tailscale Serve configuration with Dashboard authentication.
 
-</div>
+## Background workers
 
----
+The Workers screen can delegate bounded Research, Review, or Implement tasks to:
 
-## ✨ Key Features
+- Sub-PI
+- Google Antigravity CLI (`agy`)
+- OpenAI Codex CLI (`codex`)
+- Anthropic Claude CLI (`claude`)
 
-### 🤖 Autonomous Multi-Provider Worker Suite
-* **Native CLI Adapters**: Direct execution integration with **Sub-PI**, **Google Antigravity CLI** (`agy`), **OpenAI Codex CLI** (`codex`), and **Anthropic Claude CLI** (`claude`).
-* **Dynamic Bounds**: Custom sliders for turn limits (1–32), timeouts (1–60m), and result payload limits.
-* **Embedded CLI Console**: Built-in terminal session for running account authentication (`codex login`, `claude login`, `agy`) and tool discovery.
+One lightweight supervisor owns each project data directory. It runs one delegated job at a time, queues additional work, stores each task durably, survives UI/backend reconnection, and marks unexpectedly interrupted work honestly instead of replaying it. Cancellation targets only the owned process tree.
 
-### 📜 2-Level Markdown Rules & Router
-* **Level 1 Delegation Router (`WORKERS.md`)**: Defines provider specializations, routing guidelines, and available host tools (`gh`, `rg`, `uv`, `npm`).
-* **Level 2 Provider Rules (`rules/*.md`)**: Tailored operational instructions for each model provider, editable in real-time in the in-app dual-pane editor.
+Completed tasks include bounded results, compact run history, and per-run text changes for Git workspaces. Codex can continue a recorded native CLI session. Providers without verified native continuation start a clearly labeled new session from a structured saved handoff. Turn limits are enforceable only for Sub-PI; all providers use a 1-30 minute deadline and a 4-64 KB displayed result cap.
 
-### ◫ Live Web & HTML App Previewer
-* **Workspace HTML Discovery**: Automatic dropdown and direct static file serving (`/api/preview/workspace/*`) for testing local `.html` files without running external servers.
-* **Local Dev Server Tunneling**: Instant preview presets for Vite (`:5173`), Next/React (`:3000`), Local (`:8080`), and custom ports with live hot-reloading.
-* **Responsive Viewport Frames**: Test layouts across **🖥 Desktop (Full Width)**, **📱 Tablet (768px with bezel)**, and **📲 Mobile (375px phone frame)**.
+Worker prompts and process working directories are scoped to the active project. Codex also uses its supported workspace sandbox. External CLIs still run with the permissions of the local user, so review worker changes before accepting them.
 
-### 🎛️ Modular Experience Stacks & Feature Checklists
-* **One-Click Presets**:
-  * **`★ User / Basic`**: Clean and focused. Core chat, file browser, terminal, and Sub-PI solo worker.
-  * **`⚡ Developer`**: Full-stack dev mode. Multi-agent CLIs (Antigravity & Codex), Markdown Rules editor, and App Previewer.
-  * **`🏢 Business`**: Advanced automations, Claude CLI, and scheduled background tasks.
-* **Granular Feature Checklists**: Check or uncheck any individual feature or worker provider in Settings with instant live saving.
+See [Worker supervisor operations](./docs/worker-supervisor.md) for storage, recovery, continuation, change-tracking limits, and troubleshooting.
 
-### 💬 Intelligent Multi-Model Chat
-* Streaming conversations with Claude, GPT, OpenRouter, Gemini, and local Ollama models.
-* Real-time visual code diffs, interactive branch trees, and session compaction.
+## Quick start
 
-### 📁 File Explorer & Syntax-Highlighted Editor
-* Clean file browser with CodeMirror syntax highlighting, line numbers, and live file saving.
-* Preserves git state indicators (modified, added, untracked) for all workspace files.
+Prerequisites:
 
-### ⚡ Native Terminal with PTY Bridge
-* Embedded pseudo-terminal powered by `node-pty`.
-* Direct PowerShell, Command Prompt, or Git Bash execution with full ANSI color support.
-
-### 🔒 Strict Workspace Confinement
-* Enforces that all generated files, edits, and worker artifacts remain confined within your active project workspace.
-
-### 🌐 Private Remote Pairing with Tailscale Serve
-* Control your dashboard securely from your phone, tablet, or remote laptop over your encrypted Tailnet (`https://<machine>.tailnet.ts.net:8443`) with custom password authentication.
-
----
-
-## 🛠️ Quick Start
-
-### Prerequisites
-* [Node.js](https://nodejs.org/) (v20 or newer)
-* [Git](https://git-scm.com/)
-
-### Installation & Launch
+- Node.js 20 or newer
+- Git
+- Any optional provider CLI you want to use, installed and authenticated separately
 
 ```powershell
-# Clone the repository
 git clone https://github.com/mwiltb-design/pi-dashboard.git
 cd pi-dashboard
-
-# Launch developer desktop environment (auto-installs dependencies)
 .\scripts\dev.ps1
 ```
 
-*(On macOS or Linux, run `./scripts/dev.sh`)*
+On macOS or Linux, run `./scripts/dev.sh`.
 
----
+The desktop launcher installs workspace dependencies when needed, selects available local ports, starts the backend and Vite UI, and opens Electron. Default ports are `127.0.0.1:4317` for the backend and `127.0.0.1:5173` for the UI; additional windows select the next available ports.
 
-## 📁 Architecture Overview
+## Development checks
 
+```powershell
+npm --prefix server test
+npm run build
 ```
+
+## Repository map
+
+```text
 pi-dashboard/
-├── electron/          # Native Electron shell & window manager
-├── server/            # Backend API, RPC process runner & PTY bridge
-│   ├── docs/          # Built-in documentation (abilities, limits, shortcuts)
-│   ├── skills/        # Built-in agent lookup skills
-│   ├── src/           # Adapters for Sub-PI, Antigravity, Codex, and Claude
-│   └── templates/     # Clean starter project templates (MEMORY.md)
-├── ui/                # React + Vite frontend application
-│   ├── src/components # Previewer, Worker Console, Stack Selector, Editor
-│   └── src/views      # Dashboard view routing
-├── packages/          # Shared plugin-sdk
-└── scripts/           # Platform launch and build scripts
+|-- electron/       Electron shell and local service launcher
+|-- server/         Backend API, Pi RPC bridge, worker supervisor, and bundled docs
+|-- ui/             React and Vite interface
+|-- packages/       Shared plugin SDK
+|-- plugins/        Bundled plugins
+|-- docs/           Repository operations and architecture guides
+`-- scripts/        Launch and configuration scripts
 ```
 
----
+## Local state
 
-## ⚙️ Configuration & Zero Collisions
+- `~/.pi-dashboard/`: Dashboard preferences, project-scoped task records, worker rules, plugins, and remote-access configuration
+- `~/.pi/agent/`: Pi configuration and credentials
+- Provider-specific user directories: authentication and native CLI session history managed by each provider CLI
+- `~/Pi-Dashboards/<ProjectName>/`: project workspaces created by the Dashboard
 
-* **Default Ports:** UI on `127.0.0.1:5173` and Backend on `127.0.0.1:4317`.
-* **Zero Collisions:** Multi-window instances dynamically hunt the next open ports (`5174`, `4318`, etc.).
-* **Zero Manual File Editing:** Configure your settings, experience stacks, worker rules, and Tailscale password directly in the dashboard UI.
+Legacy worker task files are preserved during migration. Archiving a Dashboard task does not delete project files or provider session history.
 
----
+## License
 
-## 📜 License
-
-This project is licensed under the **GNU General Public License v3.0 (GPLv3)**. See the [LICENSE](./LICENSE) file for details.
-
-Created with ❤️ by [mwiltb-design](https://github.com/mwiltb-design).
+Foci / Pi Dashboard is licensed under the [GNU General Public License v3.0](./LICENSE).

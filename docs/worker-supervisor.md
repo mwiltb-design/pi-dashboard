@@ -1,6 +1,6 @@
 # Worker supervisor operations
 
-Foci runs delegated CLI work through one lightweight supervisor for each project data directory. The Dashboard backend connects over an authenticated local named pipe. Closing or refreshing the UI does not cancel work; an explicit task cancellation or supervisor shutdown does.
+Foci runs delegated CLI work through one lightweight supervisor for each project data directory. The Dashboard backend connects over an authenticated local named pipe. Closing or refreshing the UI does not cancel work; an explicit task cancellation or supervisor shutdown does. The supervisor exits after two idle minutes, and the next worker request automatically reconnects or starts it again.
 
 ## Storage and migration
 
@@ -31,6 +31,7 @@ On the Windows development machine, an idle supervisor with no provider CLI runn
 ## Troubleshooting
 
 - A task stuck in `starting` or `cancelling` should be inspected before starting another supervisor. New supervisors refuse to overlap an existing named-pipe owner.
+- On Windows, `connect ENOENT \\.\pipe\foci-supervisor-<hash>` should recover automatically on the next request. If it repeats, fully restart the Dashboard and inspect the project-specific supervisor configuration and activity log; do not delete task records.
 - `interrupted` means the previous supervisor stopped unexpectedly. Review files and either continue from the saved handoff or start a new task.
 - The supervisor exits after two idle minutes. The next worker request starts it again on demand.
 - Use the Workers page for status and task IDs. Primary PI delegation also returns a task ID when its bounded wait ends.

@@ -1,6 +1,6 @@
 ﻿# Google Cloud Run Hosting, Storage & Runtime Reference
 
-This document provides complete technical specifications for the Foci Dashboard running in Google Cloud Run.
+This document describes the separate hosted Foci deployment. It is not the runtime contract for the native desktop repository. Infrastructure values below were checked against Cloud Run on September 5, 2026; verify them again before making cost, capacity, or security decisions.
 
 ---
 
