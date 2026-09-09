@@ -8,7 +8,7 @@ import { supervisorPipePath } from './worker-supervisor-client.js'
 import type { SupervisorRequest, SupervisorResponse, WorkerSupervisorConfig } from './worker-supervisor-types.js'
 
 const MAX_REQUEST_BYTES = 256 * 1024
-const IDLE_EXIT_MS = 2 * 60_000
+const IDLE_EXIT_MS = 15 * 60_000
 
 function argument(name: string): string | undefined {
   const index = process.argv.indexOf(name)
@@ -74,7 +74,7 @@ function respond(socket: Socket, response: SupervisorResponse): void {
 const server = createServer((socket) => {
   let buffer = ''
   let size = 0
-  socket.setTimeout(30_000, () => socket.destroy())
+  socket.setTimeout(60_000, () => socket.destroy())
   socket.on('data', (chunk: Buffer) => {
     size += chunk.length
     if (size > MAX_REQUEST_BYTES) {

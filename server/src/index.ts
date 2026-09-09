@@ -634,6 +634,11 @@ async function handleHttp(request: IncomingMessage, response: ServerResponse): P
       }))
       return
     }
+    if (request.method === 'GET' && url.pathname === '/internal/workers/tasks') {
+      const snapshot = await workers.snapshot()
+      json(response, 200, { tasks: snapshot.tasks })
+      return
+    }
     const internalTaskMatch = url.pathname.match(/^\/internal\/workers\/tasks\/([^/]+)$/)
     if (request.method === 'GET' && internalTaskMatch) {
       const task = await workers.get(decodeURIComponent(internalTaskMatch[1]))

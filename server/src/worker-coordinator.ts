@@ -1,4 +1,4 @@
-﻿import { EventEmitter } from 'node:events'
+import { EventEmitter } from 'node:events'
 import { readFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import { dirname, join } from 'node:path'
@@ -376,6 +376,19 @@ export class WorkerCoordinator extends EventEmitter {
       const prompt = input.prompt?.trim() ?? ''
       if (!prompt) throw new WorkerError('Describe a bounded task for the worker')
       if (prompt.length > MAX_PROMPT_LENGTH) throw new WorkerError(`Worker prompts are limited to ${MAX_PROMPT_LENGTH.toLocaleString()} characters`, 413)
+
+      const activeDuplicate = this.tasks.find((task) =>
+        ['queued', 'starting', 'running'].includes(task.status) &&
+        task.providerId === adapter.provider.id &&
+        task.mode === mode &&
+        task.prompt.trim() === prompt
+      )
+      if (activeDuplicate) {
+        if (input.submissionId && !activeDuplicate.submissionId) {
+          activeDuplicate.submissionId = input.submissionId
+        }
+        return this.cloneTask(activeDuplicate)
+      }
 
       const computedBounds: WorkerBounds = {
         turnLimit: Math.min(30, Math.max(1, input.bounds?.turnLimit ?? config.defaultBounds.turnLimit ?? this.options.bounds.turnLimit)),

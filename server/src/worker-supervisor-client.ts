@@ -139,7 +139,7 @@ export class WorkerSupervisorClient {
         if (error) rejectCall(error)
         else resolveCall(result as T)
       }
-      socket.setTimeout(30_000, () => finish(new WorkerError('Worker supervisor request timed out', 504)))
+      socket.setTimeout(60_000, () => finish(new WorkerError('Worker supervisor request timed out', 504)))
       socket.once('error', (error) => finish(error))
       socket.on('data', (chunk: Buffer) => {
         size += chunk.length

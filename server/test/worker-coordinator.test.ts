@@ -200,6 +200,38 @@ test('WorkerCoordinator deduplicates retried submissions', async () => {
   }
 })
 
+test('WorkerCoordinator deduplicates active task with identical prompt and provider across different submissionIds', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'worker-active-dedup-'))
+  let executions = 0
+  const release = deferred<WorkerRunOutput>()
+  const adapter: WorkerAdapter = {
+    provider: { id: 'fake', name: 'Fake', description: 'Test', kind: 'external', status: 'ready', statusLabel: 'Ready', modes: ['research'], enabled: true },
+    async run() {
+      executions += 1
+      return release.promise
+    },
+    async cancel() {},
+  }
+  const rules = {
+    async initialize() {},
+    async loadConfig() { return { schemaVersion: 1 as const, providersEnabled: {}, defaultBounds: { timeoutMs: 60_000, turnLimit: 5, resultLimitBytes: 4_096 } } },
+    async listRules() { return [] }, async getInjectedRulesForWorker() { return '' },
+  } as unknown as WorkerRulesService
+  const coordinator = new WorkerCoordinator({ storePath: join(root, 'tasks.json'), archivePath: join(root, 'archive.json'), adapters: [adapter], rulesService: rules, bounds: { timeoutMs: 60_000, turnLimit: 5, resultLimitBytes: 4_096 }, primaryDefaults: async () => ({}) })
+  try {
+    await coordinator.initialize()
+    const first = await coordinator.start({ providerId: 'fake', mode: 'research', prompt: 'identical prompt', submissionId: 'tool-call-1' })
+    const retry = await coordinator.start({ providerId: 'fake', mode: 'research', prompt: '  identical prompt  ', submissionId: 'tool-call-2' })
+    assert.equal(retry.id, first.id)
+    release.resolve({ result: 'done', resultTruncated: false, changedFiles: [] })
+    await waitFor(() => coordinator.get(first.id)?.status === 'completed')
+    assert.equal(executions, 1)
+  } finally {
+    await coordinator.shutdown()
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
 test('WorkerCoordinator migrates legacy records without overwriting the legacy files', async () => {
   const root = await mkdtemp(join(tmpdir(), 'worker-legacy-migration-'))
   const storePath = join(root, 'worker-tasks.json')
