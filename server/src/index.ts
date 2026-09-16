@@ -813,6 +813,19 @@ async function handleHttp(request: IncomingMessage, response: ServerResponse): P
     return
   }
 
+  if (request.method === 'POST' && url.pathname === '/api/files/upload') {
+    requireFeature('files-editor')
+    const encodedName = request.headers['x-file-name']
+    if (typeof encodedName !== 'string') throw new FileAccessError('Upload filename is required')
+    let name: string
+    try { name = decodeURIComponent(encodedName) } catch { throw new FileAccessError('Upload filename is invalid') }
+    const result = await files.upload(name, request)
+    record({ category: 'system', type: 'workspace_file_uploaded', severity: 'info', summary: `Uploaded project file ${result.path}`, sessionId: currentSessionId })
+    broadcast({ type: 'workspace_changed' })
+    json(response, 201, result)
+    return
+  }
+
   if (request.method === 'POST' && url.pathname === '/api/files') {
     requireFeature('files-editor')
     const body = await readJsonBody(request, 7 * 1024 * 1024, (message, status) => new FileAccessError(message, status))
@@ -1395,6 +1408,18 @@ async function handleHttp(request: IncomingMessage, response: ServerResponse): P
       .filter((item) => item.path.toLowerCase().endsWith('.html') || item.path.toLowerCase().endsWith('.htm'))
       .map((item) => item.path)
     json(response, 200, { files: htmlFiles })
+    return
+  }
+  if (url.pathname === '/api/files/pdf') {
+    const content = await files.pdf(url.searchParams.get('path') ?? '')
+    response.writeHead(200, {
+      'content-type': 'application/pdf',
+      'content-length': content.length,
+      'content-disposition': 'inline',
+      'cache-control': 'no-store',
+      'x-content-type-options': 'nosniff',
+    })
+    response.end(content)
     return
   }
   if (url.pathname === '/api/files/content') {

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, type FormEvent } from 'react'
+import { lazy, Suspense, useRef, useState, type FormEvent } from 'react'
 import { useFiles, type GitFileState } from '../hooks/useFiles'
 import { useMemoryBank } from '../hooks/useMemoryBank'
 import { Chip, Panel } from './Panel'
@@ -34,12 +34,14 @@ export function FileBrowser({ workspaceRevision, editable }: { workspaceRevision
   const files = useFiles(workspaceRevision, editable)
   const memory = useMemoryBank()
   const [creating, setCreating] = useState(false)
+  const uploadInput = useRef<HTMLInputElement>(null)
   const [newName, setNewName] = useState('')
   const [memoryDraft, setMemoryDraft] = useState('')
   const [memoryMode, setMemoryMode] = useState<'rendered' | 'source' | 'edit'>('rendered')
   const selectedChange = files.gitStatus?.entries.find((entry) => entry.path === files.selectedPath)
   const changeCount = files.gitStatus?.entries.length ?? 0
   const isMarkdown = files.preview?.language === 'markdown'
+  const isPdf = files.selectedPath?.toLowerCase().endsWith('.pdf') === true
 
   async function createFile(event: FormEvent) {
     event.preventDefault()
@@ -83,6 +85,10 @@ export function FileBrowser({ workspaceRevision, editable }: { workspaceRevision
       action={
         <div className="file-panel-actions">
           {editable && !memory.activeTier && <button className="button button--quiet" type="button" onClick={() => setCreating((value) => !value)}>＋ New file</button>}
+          {editable && !memory.activeTier && <>
+            <input ref={uploadInput} className="sr-only" type="file" multiple onChange={(event) => { if (event.target.files) void files.uploadFiles(event.target.files); event.target.value = '' }} />
+            <button className="button button--quiet" type="button" disabled={files.uploading} onClick={() => uploadInput.current?.click()}>{files.uploading ? 'Uploading…' : '⇧ Upload files'}</button>
+          </>}
           <button className="button button--quiet" type="button" onClick={() => { if (memory.activeTier) { void handleOpenMemoryTier(memory.activeTier) } else { files.refresh() } }}>↻ Refresh</button>
         </div>
       }
@@ -247,14 +253,14 @@ export function FileBrowser({ workspaceRevision, editable }: { workspaceRevision
                 <>
                   <header className="file-preview-head">
                     <div>
-                      <span className="eyebrow">{files.mode === 'diff' ? 'Git diff' : files.mode === 'edit' ? 'File editor' : files.mode === 'rendered' ? 'Rendered Markdown' : 'Source'}</span>
+                      <span className="eyebrow">{files.mode === 'diff' ? 'Git diff' : isPdf ? 'PDF preview' : files.mode === 'edit' ? 'File editor' : files.mode === 'rendered' ? 'Rendered Markdown' : 'Source'}</span>
                       <h2 title={files.selectedPath}>{files.selectedPath ?? 'Select a file or choose a Memory tier'}</h2>
                     </div>
                     {files.selectedPath && (
                       <div className="file-mode-toggle">
                         {isMarkdown && <button className={files.mode === 'rendered' ? 'is-active' : ''} type="button" onClick={() => files.setMode('rendered')}>Rendered</button>}
-                        <button className={files.mode === 'source' ? 'is-active' : ''} type="button" onClick={() => files.setMode('source')}>Source</button>
-                        {editable && <button className={files.mode === 'edit' ? 'is-active' : ''} type="button" disabled={!files.canEdit} title={!files.canEdit ? 'Only complete text files up to 1 MB can be edited' : undefined} onClick={() => files.setMode('edit')}>Edit</button>}
+                        <button className={files.mode === 'source' ? 'is-active' : ''} type="button" onClick={() => files.setMode('source')}>{isPdf ? 'Preview' : 'Source'}</button>
+                        {editable && !isPdf && <button className={files.mode === 'edit' ? 'is-active' : ''} type="button" disabled={!files.canEdit} title={!files.canEdit ? 'Only complete text files up to 1 MB can be edited' : undefined} onClick={() => files.setMode('edit')}>Edit</button>}
                         <button className={files.mode === 'diff' ? 'is-active' : ''} type="button" onClick={() => files.setMode('diff')}>Diff</button>
                       </div>
                     )}
@@ -267,16 +273,18 @@ export function FileBrowser({ workspaceRevision, editable }: { workspaceRevision
                   )}
                   {!files.selectedPath && <div className="file-empty file-empty--large">Choose a project file to inspect, or click one of the 🧠 Memory Bank buttons above.</div>}
                   {files.selectedPath && files.mode !== 'diff' && files.preview && (
-                    files.preview.binary
-                      ? <div className="file-empty file-empty--large">Binary file · {formatBytes(files.preview.size)} · preview unavailable</div>
-                      : <>
+                    isPdf
+                      ? <iframe key={`${files.selectedPath}-${files.preview.modifiedAt}-${workspaceRevision}`} className="pdf-viewer" title={`PDF preview: ${files.preview.name}`} src={`/api/files/pdf?path=${encodeURIComponent(files.selectedPath)}`} />
+                      : files.preview.binary
+                        ? <div className="file-empty file-empty--large">Binary file · {formatBytes(files.preview.size)} · preview unavailable</div>
+                        : <>
                           {files.preview.truncated && <div className="file-warning">Preview limited to the first 1 MB. Large files are read-only.</div>}
                           <Suspense fallback={<div className="file-empty file-empty--large">Loading file presentation…</div>}>
                             {files.mode === 'rendered' && files.preview.content !== null && <MarkdownPreview content={files.preview.content} />}
                             {files.mode === 'source' && files.preview.content !== null && <SourceEditor content={files.preview.content} language={files.preview.language} editable={false} />}
                             {files.mode === 'edit' && <SourceEditor content={files.draft} language={files.preview.language} editable onChange={files.setDraft} />}
                           </Suspense>
-                        </>
+                          </>
                   )}
                   {files.selectedPath && files.mode === 'diff' && <>
                     {files.diffTruncated && <div className="file-warning">Diff limited to the first 2 MB.</div>}

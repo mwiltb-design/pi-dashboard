@@ -1,6 +1,6 @@
 {
   "name": "pi-dashboard-server",
-  "version": "1.0.0-alpha.1",
+  "version": "1.0.0-alpha.2",
   "description": "Backend API and RPC coordinator for Pi Dashboard",
   "type": "module",
   "main": "dist/index.js",

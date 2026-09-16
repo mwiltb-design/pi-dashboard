@@ -1,6 +1,6 @@
 {
   "name": "pi-dashboard-desktop",
-  "version": "1.0.0-alpha.1",
+  "version": "1.0.0-alpha.2",
   "description": "Standalone cross-platform desktop dashboard for Pi coding agent",
   "private": true,
   "type": "module",

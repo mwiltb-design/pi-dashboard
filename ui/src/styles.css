@@ -474,6 +474,7 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 .file-edit-toolbar > div { display: flex; gap: 7px; }
 .file-edit-toolbar .button { padding: 7px 10px; font-size: 10px; }
 .source-editor { flex: 1; min-height: 520px; max-height: 700px; overflow: auto; background: #090d11; }
+.pdf-viewer { display: block; width: 100%; min-height: 650px; flex: 1; border: 0; background: #20252b; }
 .source-editor .cm-editor { min-height: 520px; color: #d2dbe7; background: #090d11; font: 12px/1.65 'JetBrains Mono', monospace; }
 .source-editor .cm-scroller { overflow: auto; }
 .source-editor .cm-gutters { color: #667487; background: #0d1217; border-right-color: var(--line); }

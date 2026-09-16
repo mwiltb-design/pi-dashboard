@@ -2,12 +2,12 @@
 
 Foci is a privacy-focused desktop workspace for the Pi coding agent. It combines chat, project files, sessions, skills, plugins, an optional terminal and app previewer, and bounded background delegation to installed CLI workers.
 
-[Website](https://focidashboard.dev/) | [License](./LICENSE) | [Worker supervisor guide](./docs/worker-supervisor.md)
+[Website](https://focidashboard.dev/) | [Version history](./CHANGELOG.md) | [License](./LICENSE) | [Worker supervisor guide](./docs/worker-supervisor.md)
 
 ## What is included
 
 - **Chat and sessions:** streaming Pi conversations, model selection, saved history, branching, and compaction through the active Pi runtime.
-- **Files and editor:** workspace browsing and a CodeMirror editor with Git state indicators.
+- **Files and editor:** workspace browsing, uploads to the project `uploaded/` folder, read-only PDF previews, and a CodeMirror editor with Git state indicators.
 - **Terminal:** an optional local pseudo-terminal powered by `node-pty`.
 - **App Previewer:** responsive previews for workspace HTML files and local development servers.
 - **Skills and plugins:** bundled skills plus reviewed local plugin tools and UI.
@@ -48,6 +48,22 @@ cd pi-dashboard
 On macOS or Linux, run `./scripts/dev.sh`.
 
 The desktop launcher installs workspace dependencies when needed, selects available local ports, starts the backend and Vite UI, and opens Electron. Default ports are `127.0.0.1:4317` for the backend and `127.0.0.1:5173` for the UI; additional windows select the next available ports.
+
+## Upgrades and version history
+
+The current version is **1.0.0-alpha.2**. Recent upgrades:
+
+| Version | Upgrade |
+| --- | --- |
+| `1.0.0-alpha.2` | Files-tab uploads, collision-safe `uploaded/` storage, and inline PDF viewing. |
+| `1.0.0-alpha.1` | Initial desktop alpha and durable multi-provider worker supervision. |
+
+The detailed history is maintained in [`CHANGELOG.md`](./CHANGELOG.md). For each tested upgrade:
+
+1. Add its user-facing changes under **Unreleased** in the changelog.
+2. Assign the next semantic prerelease version and update package versions.
+3. Run the production build and server tests.
+4. Commit the upgrade, create a matching `v<version>` Git tag, and push the commit and tag together.
 
 ## Development checks
 

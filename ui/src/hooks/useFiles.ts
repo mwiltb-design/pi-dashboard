@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { apiFetch } from '../api'
 
 export type GitFileState = 'modified' | 'added' | 'deleted' | 'untracked' | 'renamed' | 'conflicted' | 'staged'
@@ -60,6 +60,12 @@ interface FileWriteResult {
   file: FilePreview
 }
 
+interface FileUploadResult {
+  path: string
+  name: string
+  size: number
+}
+
 async function getJson<T>(url: string, signal?: AbortSignal): Promise<T> {
   const response = await apiFetch(url, { signal })
   const body = await response.json() as T & { error?: string }
@@ -92,10 +98,13 @@ export function useFiles(workspaceRevision: number, editingEnabled: boolean) {
   const [searchResults, setSearchResults] = useState<FileSearchResult[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [refreshToken, setRefreshToken] = useState(0)
   const dirty = mode === 'edit' && preview?.content !== null && draft !== preview?.content
+  const dirtyRef = useRef(dirty)
+  dirtyRef.current = dirty
 
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => {
@@ -234,6 +243,43 @@ export function useFiles(workspaceRevision: number, editingEnabled: boolean) {
     }
   }
 
+  async function uploadFiles(selected: FileList | File[]) {
+    if (!editingEnabled || !allowDiscard()) return false
+    const uploadList = Array.from(selected)
+    if (!uploadList.length) return false
+    setUploading(true)
+    setNotice('')
+    try {
+      let lastPath = ''
+      for (const file of uploadList) {
+        if (file.size > 25 * 1024 * 1024) throw new Error(`${file.name} exceeds the 25 MB upload limit`)
+        const response = await apiFetch('/api/files/upload', {
+          method: 'POST',
+          headers: { 'content-type': 'application/octet-stream', 'x-file-name': encodeURIComponent(file.name) },
+          body: file,
+        })
+        const result = await response.json() as FileUploadResult & { error?: string }
+        if (!response.ok) throw new Error(result.error ?? `Unable to upload ${file.name}`)
+        lastPath = result.path
+      }
+      if (!dirtyRef.current) {
+        setPathState('uploaded')
+        setSelectedPath(lastPath)
+        setPreview(null)
+        setModeState('source')
+      }
+      setError('')
+      setNotice(`${uploadList.length} file${uploadList.length === 1 ? '' : 's'} uploaded${dirtyRef.current ? ' to uploaded/; your unsaved edit was left open' : ''}`)
+      setRefreshToken((value) => value + 1)
+      return true
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Unable to upload files')
+      return false
+    } finally {
+      setUploading(false)
+    }
+  }
+
   async function createFile(name: string) {
     if (!editingEnabled || !allowDiscard()) return false
     const filePath = path ? `${path}/${name}` : name
@@ -264,9 +310,9 @@ export function useFiles(workspaceRevision: number, editingEnabled: boolean) {
   }
 
   return {
-    path, setPath, entries, selectedPath, preview, draft, setDraft, dirty, saving, diff, diffTruncated, mode, setMode, gitStatus,
+    path, setPath, entries, selectedPath, preview, draft, setDraft, dirty, saving, uploading, diff, diffTruncated, mode, setMode, gitStatus,
     query, setQuery, searchResults, loading, error, notice, breadcrumbs, openEntry, selectChangedFile, selectSearchResult,
     editingEnabled, canEdit: editingEnabled && Boolean(preview?.revision) && !preview?.binary && !preview?.truncated,
-    save, createFile, refresh,
+    save, createFile, uploadFiles, refresh,
   }
 }

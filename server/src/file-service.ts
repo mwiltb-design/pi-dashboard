@@ -1,12 +1,17 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { chmod, link, lstat, open, readdir, readFile, realpath, rename, stat, unlink, writeFile } from 'node:fs/promises'
-import { basename, dirname, relative, resolve, sep } from 'node:path'
+import { createWriteStream } from 'node:fs'
+import { chmod, link, lstat, mkdir, open, readdir, readFile, realpath, rename, stat, unlink, writeFile } from 'node:fs/promises'
+import { basename, dirname, extname, relative, resolve, sep } from 'node:path'
+import { Transform, type Readable } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
 
 const MAX_PREVIEW_BYTES = 1024 * 1024
+const MAX_UPLOAD_BYTES = 25 * 1024 * 1024
+const MAX_PDF_BYTES = 50 * 1024 * 1024
 const MAX_SEARCH_FILE_BYTES = 256 * 1024
 const MAX_SEARCH_FILES = 5_000
 const MAX_SEARCH_RESULTS = 200
-const EXCLUDED_SEGMENTS = new Set(['.git', 'node_modules', 'dist'])
+const EXCLUDED_SEGMENTS = new Set(['.git', 'node_modules', 'dist', '.venv', 'venv', '__pycache__'])
 const SENSITIVE_NAMES = new Set(['.env', 'auth.json', 'credentials.json', 'secrets.json'])
 
 function isSensitiveName(name: string): boolean {
@@ -38,6 +43,12 @@ export interface FilePreview {
 export interface FileWriteResult {
   created: boolean
   file: FilePreview
+}
+
+export interface FileUploadResult {
+  path: string
+  name: string
+  size: number
 }
 
 export interface FileSearchResult {
@@ -202,6 +213,60 @@ export class FileService {
     })
   }
 
+  async upload(nameInput: string, input: Readable): Promise<FileUploadResult> {
+    return this.mutate(async () => {
+      const name = this.validateUploadName(nameInput)
+      const uploadRoot = resolve(this.root, 'uploaded')
+      await mkdir(uploadRoot, { recursive: true })
+      const canonicalRoot = await realpath(this.root)
+      const canonicalUploadRoot = await realpath(uploadRoot)
+      if (!canonicalUploadRoot.startsWith(`${canonicalRoot}${sep}`)) throw new FileAccessError('Upload folder is outside the workspace', 403)
+
+      const extension = extname(name)
+      const stem = name.slice(0, name.length - extension.length)
+      let candidate = name
+      let suffix = 2
+      while (true) {
+        try { await lstat(resolve(canonicalUploadRoot, candidate)); candidate = `${stem} (${suffix++})${extension}` }
+        catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') break; throw error }
+      }
+
+      const temporary = resolve(canonicalUploadRoot, `.pi-dashboard-${randomUUID()}.tmp`)
+      const target = resolve(canonicalUploadRoot, candidate)
+      let size = 0
+      const limiter = new Transform({
+        transform(chunk: Buffer, _encoding, callback) {
+          size += chunk.length
+          if (size > MAX_UPLOAD_BYTES) { callback(new FileAccessError('Uploads are limited to 25 MB', 413)); return }
+          callback(null, chunk)
+        },
+      })
+      try {
+        await pipeline(input, limiter, createWriteStream(temporary, { flags: 'wx' }))
+        if (!size) throw new FileAccessError('Empty files cannot be uploaded')
+        await link(temporary, target)
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'EEXIST') throw new FileAccessError('A file with that name already exists', 409)
+        throw error
+      } finally {
+        await unlink(temporary).catch(() => undefined)
+      }
+      return { path: `uploaded/${candidate}`, name: candidate, size }
+    })
+  }
+
+  async pdf(path: string): Promise<Buffer> {
+    const safePath = this.validateRelative(path)
+    if (extname(safePath).toLowerCase() !== '.pdf') throw new FileAccessError('Only PDF files can use the PDF viewer', 415)
+    const absolute = await this.existingPath(safePath)
+    const info = await stat(absolute)
+    if (!info.isFile()) throw new FileAccessError('Path is not a file')
+    if (info.size > MAX_PDF_BYTES) throw new FileAccessError('PDF preview is limited to 50 MB', 413)
+    const content = await readFile(absolute)
+    if (content.length < 8 || content.subarray(0, 5).toString('ascii') !== '%PDF-') throw new FileAccessError('The selected file is not a valid PDF', 415)
+    return content
+  }
+
   async search(query: string): Promise<FileSearchResult[]> {
     const needle = query.trim().toLocaleLowerCase()
     if (needle.length < 2) throw new FileAccessError('Search must contain at least two characters')
@@ -228,6 +293,16 @@ export class FileService {
       if (nameMatch || matches.length) results.push({ path, name, nameMatch, matches })
     }
     return results
+  }
+
+  private validateUploadName(input: string): string {
+    if (typeof input !== 'string' || !input || input.includes('/') || input.includes('\\') || input.includes('\0') || input.includes(':')) throw new FileAccessError('Invalid upload filename')
+    const name = basename(input).replace(/[\u0000-\u001f\u007f]/g, '').trim()
+    if (!name || name === '.' || name === '..' || name.length > 180 || /[. ]$/.test(name)) throw new FileAccessError('Invalid upload filename')
+    if (isSensitiveName(name)) throw new FileAccessError('Sensitive credential files cannot be uploaded', 403)
+    const stem = name.split('.')[0].toUpperCase()
+    if (/^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/.test(stem)) throw new FileAccessError('Reserved filenames are not supported')
+    return name
   }
 
   private validateWriteInput(path: string, content: unknown): string {
