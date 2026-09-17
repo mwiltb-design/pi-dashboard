@@ -1,4 +1,4 @@
-# Pi Dashboard abilities
+# Foci Dashboard abilities
 
 ## Core workspace
 

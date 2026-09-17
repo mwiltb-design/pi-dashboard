@@ -81,7 +81,7 @@ export function PluginManager({
     const description = idea.trim()
     if (!description && !reference.trim()) return
     const source = reference.trim() ? ` Use this as a functional reference: ${reference.trim()}. Duplicate the useful behavior, but do not copy branding or copyrighted assets.` : ''
-    onCreateWithPi(`Use the dashboard-plugin-authoring skill. I want a Pi Dashboard plugin that: ${description || 'reproduces the referenced plugin functionality'}.${source} Classify it as a trusted static install, a new static plugin, or a bundled agent-connected plugin before changing files. Follow the skill's routed contract and tests. Do not commit the main Dashboard repository or push anything. When finished, tell me exactly how to review and activate it in the Plugins page.`)
+    onCreateWithPi(`Use the dashboard-plugin-authoring skill. I want a Foci Dashboard plugin that: ${description || 'reproduces the referenced plugin functionality'}.${source} Classify it as a trusted static install, a new static plugin, or a bundled agent-connected plugin before changing files. Follow the skill's routed contract and tests. Do not commit the main Dashboard repository or push anything. When finished, tell me exactly how to review and activate it in the Plugins page.`)
   }
 
   async function reviewRepository(event: FormEvent) {

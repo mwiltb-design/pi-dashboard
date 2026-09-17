@@ -1,11 +1,11 @@
 ---
 name: dashboard-docs
-description: Look up Pi Dashboard abilities, limitations, input controls, worker behavior, and troubleshooting guidance.
+description: Look up Foci Dashboard abilities, limitations, input controls, worker behavior, and troubleshooting guidance.
 ---
 
 # Dashboard Documentation Lookup Skill
 
-Use this skill whenever the user asks questions about how Pi-Dashboard works, what tools or abilities it has, its operational boundaries or limitations, or how to use keyboard shortcuts and slash commands.
+Use this skill whenever the user asks questions about how Foci Dashboard works, what tools or abilities it has, its operational boundaries or limitations, or how to use keyboard shortcuts and slash commands.
 
 ## Documentation Structure
 The concise documentation is located inside the server `docs/` directory:

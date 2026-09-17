@@ -31,7 +31,7 @@ content-security-policy: sandbox allow-scripts allow-forms
 
 ## Plugin Backend Protocol Errors
 
-Pi Dashboard 2.0 uses in-process hosted modules (`host-module`) for all backend and agent-connected plugins. The old Docker/socket sidecar protocol (`http-unix-v1`) is completely phased out.
+Foci Dashboard uses in-process hosted modules (`host-module`) for all backend and agent-connected plugins. The old Docker/socket sidecar protocol (`http-unix-v1`) is completely phased out.
 
 All plugins with backend logic must declare:
 

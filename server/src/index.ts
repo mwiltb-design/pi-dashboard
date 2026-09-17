@@ -110,7 +110,7 @@ const pluginAssetCapability = randomBytes(32).toString('base64url')
 const workerInternalToken = randomBytes(32).toString('base64url')
 const profile = dashboardProfile()
 const enabledFeatures = new Set<DashboardFeature>(profile.features)
-let rpcArgs = ['--mode', 'rpc', '--continue', '--name', 'Pi Dashboard', '--extension', runtimeInfoExtension, '--extension', curatedMemoryExtension, '--extension', memoryCheckpointExtension, '--extension', pluginToolsExtension, ...(enabledFeatures.has('workers') ? ['--extension', workersExtension] : []), ...(rpcSessionDir ? ['--session-dir', rpcSessionDir] : [])]
+let rpcArgs = ['--mode', 'rpc', '--continue', '--name', 'Foci Dashboard', '--extension', runtimeInfoExtension, '--extension', curatedMemoryExtension, '--extension', memoryCheckpointExtension, '--extension', pluginToolsExtension, ...(enabledFeatures.has('workers') ? ['--extension', workersExtension] : []), ...(rpcSessionDir ? ['--session-dir', rpcSessionDir] : [])]
 let rpc = registerRpcListeners(new PiRpcProcess({
   cwd: workspace,
   args: rpcArgs,
@@ -306,7 +306,7 @@ async function switchActiveWorkspace(targetWorkspace: string): Promise<{ workspa
   activity = new ActivityStore(activityPath)
   workers = new WorkerSupervisorClient(workerSupervisorConfig())
 
-  rpcArgs = ['--mode', 'rpc', '--continue', '--name', 'Pi Dashboard', '--extension', runtimeInfoExtension, '--extension', curatedMemoryExtension, '--extension', memoryCheckpointExtension, '--extension', pluginToolsExtension, ...(enabledFeatures.has('workers') ? ['--extension', workersExtension] : []), '--session-dir', currentRpcSessionDir]
+  rpcArgs = ['--mode', 'rpc', '--continue', '--name', 'Foci Dashboard', '--extension', runtimeInfoExtension, '--extension', curatedMemoryExtension, '--extension', memoryCheckpointExtension, '--extension', pluginToolsExtension, ...(enabledFeatures.has('workers') ? ['--extension', workersExtension] : []), '--session-dir', currentRpcSessionDir]
   rpc = registerRpcListeners(new PiRpcProcess({
     cwd: workspace,
     args: rpcArgs,
@@ -1703,7 +1703,7 @@ function startServer(initialPort: number, host: string, maxAttempts = 20): void 
     server.once('error', onError)
     server.listen(currentPort, host, () => {
       server.removeListener('error', onError)
-      console.log(`Pi Dashboard backend listening on http://${host}:${currentPort} [Project: ${projectSlug}]`)
+      console.log(`Foci Dashboard backend listening on http://${host}:${currentPort} [Project: ${projectSlug}]`)
       record({ category: 'system', type: 'server_start', severity: 'info', summary: `Dashboard backend started on port ${currentPort} for project ${projectSlug}` })
       void rpc.start().then(() => state()).catch((error: Error) => {
         record({ category: 'error', type: 'rpc_start_failed', severity: 'error', summary: error.message })

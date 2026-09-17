@@ -4,7 +4,7 @@ param(
 )
 
 # -----------------------------------------------------------------------------
-# Pi-Dashboard Desktop - Developer Launch Script (PowerShell / Windows)
+# Foci Dashboard Desktop - Developer Launch Script (PowerShell / Windows)
 # -----------------------------------------------------------------------------
 
 $ErrorActionPreference = "Stop"
@@ -12,7 +12,7 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RootDir = Split-Path -Parent $ScriptDir
 
 Write-Host "=========================================" -ForegroundColor Cyan
-Write-Host "      Pi-Dashboard Desktop (Dev)        " -ForegroundColor Cyan
+Write-Host "      Foci Dashboard Desktop (Dev)        " -ForegroundColor Cyan
 Write-Host "=========================================" -ForegroundColor Cyan
 
 # Install dependencies across all workspaces if missing

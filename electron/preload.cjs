@@ -1,4 +1,4 @@
-// Preload script for Pi-Dashboard Desktop
+// Preload script for Foci Dashboard Desktop
 window.addEventListener('DOMContentLoaded', () => {
-  console.log('[Pi-Dashboard Desktop] Electron Shell Connected.');
+  console.log('[Foci Dashboard Desktop] Electron Shell Connected.');
 });

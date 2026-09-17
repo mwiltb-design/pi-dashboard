@@ -1,6 +1,6 @@
-# Foci / Pi Dashboard overview
+# Foci Dashboard overview
 
-This repository contains the native desktop Dashboard built with Electron, Node.js, React, and Vite. A separately deployed hosted Foci service has its own runtime constraints; use `cloud-run.md` only for questions about that deployment.
+This repository contains the native desktop Foci Dashboard built with Electron, Node.js, React, and Vite. A separately deployed hosted Foci service has its own runtime constraints; use `cloud-run.md` only for questions about that deployment.
 
 ## Main screens
 

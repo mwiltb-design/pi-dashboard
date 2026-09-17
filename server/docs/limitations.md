@@ -1,4 +1,4 @@
-# Pi Dashboard boundaries and limitations
+# Foci Dashboard boundaries and limitations
 
 ## Models and network access
 

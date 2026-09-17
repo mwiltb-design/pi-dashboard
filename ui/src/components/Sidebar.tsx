@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { NavigationItem, PluginSummary, ViewId } from '../types'
+import { FociLogo } from './FociLogo'
 
 interface SidebarProps {
   currentView: ViewId
@@ -43,8 +44,8 @@ export function Sidebar({ currentView, currentPluginId, currentPluginsPage, navi
       />
       <aside className={`sidebar ${open ? 'is-open' : ''}`} aria-label="Main navigation">
         <div className="sidebar__brand">
-          <span className="brand-mark">π</span>
-          <span>PI DASHBOARD</span>
+          <FociLogo size={30} />
+          <span>Foci Dashboard</span>
           <button className="sidebar__close" type="button" aria-label="Close navigation" onClick={onClose}>×</button>
         </div>
 

@@ -1,7 +1,7 @@
 {
   "name": "pi-dashboard-electron",
-  "version": "1.0.0-alpha.2",
-  "description": "Electron shell wrapper for Pi Dashboard",
+  "version": "1.0.0-alpha.3",
+  "description": "Electron shell wrapper for Foci Dashboard",
   "main": "main.cjs",
   "scripts": {
     "start": "electron .",

@@ -57,7 +57,7 @@ export function ChatView({ chat }: { chat: PiChatController }) {
     <>
       <Panel
         eyebrow="Conversation"
-        title={chat.state.sessionName || 'Pi Dashboard'}
+        title={!chat.state.sessionName || chat.state.sessionName === 'Pi Dashboard' ? 'Foci Dashboard' : chat.state.sessionName}
         action={<Chip tone={chat.connection === 'connected' ? 'accent' : 'warning'}>{connectionLabel}</Chip>}
         className="chat-panel"
       >

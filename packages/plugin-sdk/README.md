@@ -1,4 +1,4 @@
-# Pi Dashboard Plugin SDK v1
+# Foci Dashboard Plugin SDK v1
 
 This package provides the versioned manifest schema, types, path validation, and message protocols shared across the Dashboard host, plugin authors, and test suites.
 

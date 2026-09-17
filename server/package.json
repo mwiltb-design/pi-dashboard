@@ -1,7 +1,7 @@
 {
   "name": "pi-dashboard-server",
-  "version": "1.0.0-alpha.2",
-  "description": "Backend API and RPC coordinator for Pi Dashboard",
+  "version": "1.0.0-alpha.3",
+  "description": "Backend API and RPC coordinator for Foci Dashboard",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {

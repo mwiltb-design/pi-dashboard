@@ -59,7 +59,7 @@ When deciding which worker to assign for a task, follow these guidelines:
 
 const DEFAULT_ANTIGRAVITY_MD = `# Antigravity CLI Guidelines (Level 2)
 
-You are operating as a dedicated Antigravity worker delegated a focused task by Pi Dashboard.
+You are operating as a dedicated Antigravity worker delegated a focused task by Foci Dashboard.
 
 ## Working Principles:
 1. **Strict Workspace Confinement**: All created files, edits, and artifact generation MUST occur strictly within the active project workspace root. Do NOT write to ~/.gemini, scratch directories, or temporary paths.
@@ -73,7 +73,7 @@ You are operating as a dedicated Antigravity worker delegated a focused task by 
 
 const DEFAULT_CODEX_MD = `# Codex CLI Guidelines (Level 2)
 
-You are operating as a dedicated Codex worker delegated a focused task by Pi Dashboard.
+You are operating as a dedicated Codex worker delegated a focused task by Foci Dashboard.
 
 ## Working Principles:
 1. **Strict Workspace Confinement**: All created files, edits, and tests MUST occur strictly within the active project workspace root. Do NOT write to ~/.codex or external paths.
@@ -84,7 +84,7 @@ You are operating as a dedicated Codex worker delegated a focused task by Pi Das
 
 const DEFAULT_CLAUDE_MD = `# Claude CLI Guidelines (Level 2)
 
-You are operating as a dedicated Claude worker delegated a focused task by Pi Dashboard.
+You are operating as a dedicated Claude worker delegated a focused task by Foci Dashboard.
 
 ## Working Principles:
 1. **Strict Workspace Confinement**: All created files, edits, documentation, and reviews MUST occur strictly within the active project workspace root. Do NOT write to ~/.claude, temporary paths, or directories outside the workspace.

@@ -1,4 +1,4 @@
-# Pi Dashboard Plugin Authoring Contract
+# Foci Dashboard Plugin Authoring Contract
 
 This reference is the authoritative implementation map for all Dashboard plugin development.
 

@@ -37,7 +37,7 @@ async function update(action: 'skip' | 'complete', body: Record<string, unknown>
 
 export function Onboarding({ initial, terminalEnabled, workersEnabled, authenticationEnabled, onClose }: OnboardingProps) {
   const [step, setStep] = useState(0)
-  const [appName, setAppName] = useState(initial.appName || 'Pi-Dashboard')
+  const [appName, setAppName] = useState(initial.appName && initial.appName !== 'Pi-Dashboard' ? initial.appName : 'Foci Dashboard')
   const [authToken, setAuthToken] = useState('')
   const [name, setName] = useState('')
   const [location, setLocation] = useState('')
@@ -69,7 +69,7 @@ export function Onboarding({ initial, terminalEnabled, workersEnabled, authentic
     setBusy(true); setError('')
     try {
       const payload: Record<string, unknown> = {
-        appName: appName.trim() || 'Pi-Dashboard',
+        appName: appName.trim() || 'Foci Dashboard',
         authToken: authToken.trim() || undefined,
         importedUserProfile: rawUserMd.trim() || undefined,
         importedGlobalMemory: rawMemoryMd.trim() || undefined,
@@ -95,7 +95,7 @@ export function Onboarding({ initial, terminalEnabled, workersEnabled, authentic
         <h2>Your private project workspace</h2>
         <p>Dashboard works only inside the project folder selected during setup. Provider credentials and personal memory stay in your private background data profile.</p>
         <div className="onboarding-fields" style={{ margin: '14px 0', gap: '10px' }}>
-          <label><span>Dashboard Display Name</span><input value={appName} maxLength={64} onChange={(e) => setAppName(e.target.value)} placeholder="Pi-Dashboard" /></label>
+          <label><span>Dashboard Display Name</span><input value={appName} maxLength={64} onChange={(e) => setAppName(e.target.value)} placeholder="Foci Dashboard" /></label>
           <label><span>Dashboard Access Password (Optional)</span><input type="password" value={authToken} onChange={(e) => setAuthToken(e.target.value)} placeholder="Leave blank for password-free local access" /></label>
         </div>
         <dl><div><dt>Project Workspace</dt><dd><code>{initial.workspace}</code></dd></div><div><dt>Browser sign-in</dt><dd>{authenticationEnabled || authToken ? 'Enabled' : 'Disabled for local instance'}</dd></div></dl>

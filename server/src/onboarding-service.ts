@@ -27,7 +27,7 @@ function normalizedState(value: unknown): Omit<OnboardingState, 'userProfileEdit
     schemaVersion: 1,
     completed: raw.completed === true,
     dismissed: raw.dismissed === true,
-    appName: typeof raw.appName === 'string' ? raw.appName : 'Pi-Dashboard',
+    appName: typeof raw.appName === 'string' && raw.appName !== 'Pi-Dashboard' ? raw.appName : 'Foci Dashboard',
     features: {
       terminal: (raw.features as any)?.terminal === true,
       workers: (raw.features as any)?.workers === true,
@@ -100,7 +100,7 @@ export class OnboardingService {
       await this.writeText(this.globalMemoryPath, input.importedGlobalMemory.trim() + '\n')
     }
 
-    const appName = typeof input.appName === 'string' && input.appName.trim() ? input.appName.trim() : 'Pi-Dashboard'
+    const appName = typeof input.appName === 'string' && input.appName.trim() ? input.appName.trim() : 'Foci Dashboard'
     const features = {
       terminal: input.features?.terminal === true,
       workers: input.features?.workers === true,

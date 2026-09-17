@@ -1,6 +1,6 @@
 ---
 name: dashboard-plugin-authoring
-description: Build, reproduce, review, import, upgrade, or troubleshoot Pi Dashboard plugins. Use whenever the user describes a plugin they want, supplies a GitHub repository or website as a plugin/reference, asks to install trusted plugin code, or wants a plugin that Pi can read or manipulate.
+description: Build, reproduce, review, import, upgrade, or troubleshoot Foci Dashboard plugins. Use whenever the user describes a plugin they want, supplies a GitHub repository or website as a plugin/reference, asks to install trusted plugin code, or wants a plugin that Pi can read or manipulate.
 ---
 
 # Dashboard Plugin Authoring

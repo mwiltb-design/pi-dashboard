@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { ChatItem } from '../hooks/usePiChat'
+import { FociLogo } from './FociLogo'
 
 function formatArgs(args: unknown): string {
   if (args === undefined || args === null) return ''
@@ -22,7 +23,7 @@ export function ChatTimeline({ items, running }: { items: ChatItem[]; running: b
   if (items.length === 0) {
     return (
       <div className="chat-empty">
-        <span className="brand-mark">π</span>
+        <FociLogo size={44} className="brand-mark" />
         <h2>Start a Pi conversation</h2>
         <p>This session runs locally in the dashboard backend. Pi can read and modify files in the dashboard project.</p>
       </div>

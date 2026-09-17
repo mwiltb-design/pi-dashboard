@@ -1,6 +1,6 @@
 ---
 name: dashboard-reference
-description: Consult Pi Dashboard's built-in reference docs before explaining Dashboard behavior, troubleshooting Dashboard features, changing configuration, or building plugins, skills, tools, workers, or install instructions.
+description: Consult Foci Dashboard's built-in reference docs before explaining Dashboard behavior, troubleshooting Dashboard features, changing configuration, or building plugins, skills, tools, workers, or install instructions.
 metadata:
   category: Dashboard
 ---

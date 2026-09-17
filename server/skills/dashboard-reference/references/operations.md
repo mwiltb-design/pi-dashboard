@@ -4,7 +4,7 @@ Use this document for desktop startup, ports, workspaces, state, backup, and pri
 
 ## Starting the desktop application
 
-- **Desktop shortcut:** open the installed Pi Dashboard shortcut if configured.
+- **Desktop shortcut:** open the installed Foci Dashboard shortcut if configured.
 - **Windows source checkout:** `./scripts/dev.ps1`
 - **macOS/Linux source checkout:** `./scripts/dev.sh`
 

@@ -29,7 +29,7 @@ export class ShortcutService {
       }
 
       const desktopDir = resolve(homedir(), 'Desktop')
-      const shortcutPath = resolve(desktopDir, 'Pi Dashboard.lnk')
+      const shortcutPath = resolve(desktopDir, 'Foci Dashboard.lnk')
       const repoRoot = findProjectRoot(import.meta.dirname ?? process.cwd())
       const devScript = resolve(repoRoot, 'scripts/dev.ps1')
 
@@ -49,7 +49,7 @@ export class ShortcutService {
         `$Shortcut.Arguments = '-WindowStyle Hidden -ExecutionPolicy Bypass -File "${devScript.replace(/"/g, '`"')}"'`,
         `$Shortcut.WorkingDirectory = '${repoRoot.replace(/'/g, "''")}'`,
         `$Shortcut.WindowStyle = 7`,
-        `$Shortcut.Description = 'Pi Dashboard - AI Desktop Workbench'`,
+        `$Shortcut.Description = 'Foci Dashboard - AI Desktop Workbench'`,
         `$Shortcut.Save()`,
       ].join('\r\n')
 

@@ -1,6 +1,6 @@
 ---
 name: curated-memory
-description: Maintains Pi Dashboard's small, authoritative Markdown memory layers. Use when the user asks to remember, forget, review, or update durable personal, cross-project, or project-specific context, and during an explicit memory checkpoint.
+description: Maintains Foci Dashboard's small, authoritative Markdown memory layers. Use when the user asks to remember, forget, review, or update durable personal, cross-project, or project-specific context, and during an explicit memory checkpoint.
 metadata:
   category: Memory
 ---

@@ -33,9 +33,9 @@ Facts about the user. The AI MUST ask permission before modifying this file.
 `
 
 export const DASHBOARD_REFERENCE_MEMORY = `<!-- pi-dashboard-reference -->
-## Pi Dashboard documentation
+## Foci Dashboard documentation
 
-When a question concerns Pi Dashboard behavior, configuration, troubleshooting, operations, plugins, skills, tools, or workers, consult the bundled routing file in the dashboard reference skill. Follow its routing to read only the relevant reference file; do not preload the complete documentation set.
+When a question concerns Foci Dashboard behavior, configuration, troubleshooting, operations, plugins, skills, tools, or workers, consult the bundled routing file in the dashboard reference skill. Follow its routing to read only the relevant reference file; do not preload the complete documentation set.
 `
 
 export const GLOBAL_MEMORY_TEMPLATE = `# Global Collaboration Memory (MEMORY.md)

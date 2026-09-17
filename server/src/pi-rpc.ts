@@ -62,7 +62,7 @@ export class PiRpcProcess extends EventEmitter {
     const cliPath = resolvePiCli()
     const command = this.options.command ?? process.execPath
     const baseArgs = this.options.command ? [] : [cliPath]
-    const args = this.options.args ?? ['--mode', 'rpc', '--continue', '--name', 'Pi Dashboard']
+    const args = this.options.args ?? ['--mode', 'rpc', '--continue', '--name', 'Foci Dashboard']
     const finalArgs = [...baseArgs, ...args]
     const childEnv = { ...process.env, ...this.options.env }
     delete childEnv.PI_DASHBOARD_AUTH_TOKEN

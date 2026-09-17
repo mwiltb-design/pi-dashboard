@@ -4,7 +4,7 @@ Use this document to orient plugin questions before implementing. For implementa
 
 ## Supported Plugin Matrix
 
-Pi Dashboard supports four plugin variations based on distribution (Bundled vs Repository-Installed) and capability (Static UI vs Hosted Backend with Pi Access):
+Foci Dashboard supports four plugin variations based on distribution (Bundled vs Repository-Installed) and capability (Static UI vs Hosted Backend with Pi Access):
 
 | Plugin Type | Source Location | Manifest Backend (`entry.backend`) | Agent Tools & Skills (`agent`) | Permissions | Installation Procedure | Dashboard Restart / Rebuild |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -14,7 +14,7 @@ Pi Dashboard supports four plugin variations based on distribution (Bundled vs R
 | **Repository Hosted** | Standalone Git repo (`workspace:`, `local:`, GitHub) | `protocol: "host-module"` | Supported (`/agent/*` tools, `skills/`) | Supported (`plugin-data:*`, `dashboard-*`) | Plugins page: Review commit & Install | **None** (instant runtime install) |
 
 > [!NOTE]
-> Pi Dashboard 2.0 uses the in-process `host-module` runtime for all backend and agent-connected plugins. The legacy `http-unix-v1` socket sidecar protocol has been completely removed.
+> Foci Dashboard uses the in-process `host-module` runtime for all backend and agent-connected plugins. The legacy `http-unix-v1` socket sidecar protocol has been completely removed.
 
 ## Repository Source Formats
 

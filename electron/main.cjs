@@ -51,7 +51,7 @@ async function startServices() {
   const backendPort = await findAvailablePort(DEFAULT_BACKEND_PORT)
   const uiPort = await findAvailablePort(DEFAULT_UI_PORT, [backendPort])
 
-  console.log(`[Pi Dashboard] Launching on UI Port: ${uiPort} | Backend Port: ${backendPort}`)
+  console.log(`[Foci Dashboard] Launching on UI Port: ${uiPort} | Backend Port: ${backendPort}`)
 
   const defaultProjectsRoot = path.resolve(require('node:os').homedir(), 'Pi-Dashboards')
   const workspacePath = process.env.PI_WORKSPACE || process.env.PI_DASHBOARD_WORKSPACE || path.resolve(defaultProjectsRoot, 'Default')
@@ -117,7 +117,7 @@ async function createWindow(uiPort, backendPort) {
     minWidth: 960,
     minHeight: 620,
     backgroundColor: '#0a0d10',
-    title: 'Pi-Dashboard',
+    title: 'Foci Dashboard',
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       nodeIntegration: false,

@@ -1,4 +1,4 @@
-# Pi Dashboard input and command reference
+# Foci Dashboard input and command reference
 
 ## Chat input
 

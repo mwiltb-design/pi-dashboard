@@ -36,7 +36,7 @@ function workerPrompt(input: WorkerRunInput, workspace: string): string {
 
   const rules = input.ruleContext ? `\n\nGuidelines:\n${input.ruleContext}\n` : ''
 
-  return `You are a bounded Antigravity CLI worker reporting back to Pi Dashboard.
+  return `You are a bounded Antigravity CLI worker reporting back to Foci Dashboard.
 
 Active Project Workspace: ${workspace}
 CRITICAL WORKSPACE CONFINEMENT:
