@@ -51,10 +51,11 @@ The desktop launcher installs workspace dependencies when needed, selects availa
 
 ## Upgrades and version history
 
-The current version is **1.0.0-alpha.3**. Recent upgrades:
+The current version is **1.0.0-alpha.4**. Recent upgrades:
 
 | Version | Upgrade |
 | --- | --- |
+| `1.0.0-alpha.4` | Movable Files-tab chat panel sharing the active Pi session, with visible open-file, cursor, and selected-text context. |
 | `1.0.0-alpha.3` | First-pass Foci Dashboard rebrand with updated UI branding, docs, launcher copy, and Foci logo/favicon assets. |
 | `1.0.0-alpha.2` | Files-tab uploads, collision-safe `uploaded/` storage, and inline PDF viewing. |
 | `1.0.0-alpha.1` | Initial desktop alpha and durable multi-provider worker supervision. |

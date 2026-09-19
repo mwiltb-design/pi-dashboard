@@ -1,7 +1,9 @@
-import { lazy, Suspense, useRef, useState, type FormEvent } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useFiles, type GitFileState } from '../hooks/useFiles'
 import { useMemoryBank } from '../hooks/useMemoryBank'
 import { Chip, Panel } from './Panel'
+import type { FileChatContext } from './FilesChatPanel'
+import type { EditorSelectionContext } from './FileEditor'
 
 const SourceEditor = lazy(() => import('./FileEditor').then((module) => ({ default: module.SourceEditor })))
 const MarkdownPreview = lazy(() => import('./FileEditor').then((module) => ({ default: module.MarkdownPreview })))
@@ -30,7 +32,11 @@ function DiffView({ diff }: { diff: string }) {
   )
 }
 
-export function FileBrowser({ workspaceRevision, editable }: { workspaceRevision: number; editable: boolean }) {
+export function FileBrowser({ workspaceRevision, editable, onChatContextChange }: {
+  workspaceRevision: number
+  editable: boolean
+  onChatContextChange: (context?: FileChatContext) => void
+}) {
   const files = useFiles(workspaceRevision, editable)
   const memory = useMemoryBank()
   const [creating, setCreating] = useState(false)
@@ -42,6 +48,15 @@ export function FileBrowser({ workspaceRevision, editable }: { workspaceRevision
   const changeCount = files.gitStatus?.entries.length ?? 0
   const isMarkdown = files.preview?.language === 'markdown'
   const isPdf = files.selectedPath?.toLowerCase().endsWith('.pdf') === true
+
+  useEffect(() => {
+    onChatContextChange(!memory.activeTier && files.selectedPath ? { path: files.selectedPath } : undefined)
+  }, [files.selectedPath, files.mode, memory.activeTier, onChatContextChange])
+
+  function handleEditorContext(context: EditorSelectionContext) {
+    if (memory.activeTier || !files.selectedPath) return
+    onChatContextChange({ path: files.selectedPath, ...context })
+  }
 
   async function createFile(event: FormEvent) {
     event.preventDefault()
@@ -281,8 +296,8 @@ export function FileBrowser({ workspaceRevision, editable }: { workspaceRevision
                           {files.preview.truncated && <div className="file-warning">Preview limited to the first 1 MB. Large files are read-only.</div>}
                           <Suspense fallback={<div className="file-empty file-empty--large">Loading file presentation…</div>}>
                             {files.mode === 'rendered' && files.preview.content !== null && <MarkdownPreview content={files.preview.content} />}
-                            {files.mode === 'source' && files.preview.content !== null && <SourceEditor content={files.preview.content} language={files.preview.language} editable={false} />}
-                            {files.mode === 'edit' && <SourceEditor content={files.draft} language={files.preview.language} editable onChange={files.setDraft} />}
+                            {files.mode === 'source' && files.preview.content !== null && <SourceEditor content={files.preview.content} language={files.preview.language} editable={false} onSelectionChange={handleEditorContext} />}
+                            {files.mode === 'edit' && <SourceEditor content={files.draft} language={files.preview.language} editable onChange={files.setDraft} onSelectionChange={handleEditorContext} />}
                           </Suspense>
                           </>
                   )}

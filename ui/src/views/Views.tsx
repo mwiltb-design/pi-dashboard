@@ -1,7 +1,9 @@
-import { FormEvent, KeyboardEvent, useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AppPreviewer } from '../components/AppPreviewer'
+import { ChatComposer } from '../components/ChatComposer'
 import { ChatTimeline } from '../components/ChatTimeline'
 import { FileBrowser } from '../components/FileBrowser'
+import { FilesChatPanel, type FileChatContext, type FilesChatPosition } from '../components/FilesChatPanel'
 import { Chip, Panel } from '../components/Panel'
 import { SessionBrowser } from '../components/SessionBrowser'
 import { SkillsToolsView } from '../components/SkillsToolsView'
@@ -26,21 +28,10 @@ export function ChatView({ chat }: { chat: PiChatController }) {
     chat.clearComposerPrefill()
   }, [chat.composerPrefill, chat.clearComposerPrefill])
 
-  function sendDraft(): void {
-    const message = draft.trim()
-    if (!message || busy) return
-    if (chat.prompt(message)) setDraft('')
-  }
-
-  function submit(event: FormEvent) {
-    event.preventDefault()
-    sendDraft()
-  }
-
-  function handleComposerKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key !== 'Enter' || event.shiftKey || event.ctrlKey || event.nativeEvent.isComposing) return
-    event.preventDefault()
-    sendDraft()
+  function sendDraft(message: string): boolean {
+    const sent = chat.prompt(message)
+    if (sent) setDraft('')
+    return sent
   }
 
   const context = chat.state.contextUsage
@@ -63,21 +54,7 @@ export function ChatView({ chat }: { chat: PiChatController }) {
       >
         {chat.connectionError && <div className="connection-banner">{chat.connectionError}</div>}
         <ChatTimeline items={chat.items} running={chat.running} />
-        <form className="composer" onSubmit={submit}>
-          <label className="sr-only" htmlFor="chat-message">Message</label>
-          <textarea
-            id="chat-message"
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            onKeyDown={handleComposerKeyDown}
-            placeholder={chat.connection === 'connected' ? 'Ask Pi about this project...' : 'Waiting for the local backend...'}
-            rows={2}
-            disabled={chat.connection !== 'connected' || busy}
-          />
-          {chat.running
-            ? <button className="button button--stop" type="button" onClick={chat.abort}>Stop</button>
-            : <button className="button button--primary" type="submit" disabled={busy || !draft.trim() || chat.connection !== 'connected'}>Send</button>}
-        </form>
+        <ChatComposer id="chat-message" draft={draft} onDraftChange={setDraft} onSend={sendDraft} onStop={chat.abort} connection={chat.connection} busy={busy} running={chat.running} />
       </Panel>
 
       <Panel eyebrow="Session context" title="Current session" action={<Chip>{chat.state.messageCount ?? 0} messages</Chip>}>
@@ -101,8 +78,22 @@ export function ChatView({ chat }: { chat: PiChatController }) {
   )
 }
 
-export function FilesView({ workspaceRevision, editable }: { workspaceRevision: number; editable: boolean }) {
-  return <FileBrowser workspaceRevision={workspaceRevision} editable={editable} />
+export function FilesView({ workspaceRevision, editable, chat, chatOpen, onChatOpenChange, chatPosition, onChatPositionChange, fileContext, onFileContextChange }: {
+  workspaceRevision: number
+  editable: boolean
+  chat: PiChatController
+  chatOpen: boolean
+  onChatOpenChange: (open: boolean) => void
+  chatPosition: FilesChatPosition | null
+  onChatPositionChange: (position: FilesChatPosition | null) => void
+  fileContext?: FileChatContext
+  onFileContextChange: (context?: FileChatContext) => void
+}) {
+  const scopeRef = useRef<HTMLDivElement>(null)
+  return <div className="files-workspace" ref={scopeRef}>
+    <FileBrowser workspaceRevision={workspaceRevision} editable={editable} onChatContextChange={onFileContextChange} />
+    <FilesChatPanel chat={chat} context={fileContext} open={chatOpen} onOpenChange={onChatOpenChange} position={chatPosition} onPositionChange={onChatPositionChange} scopeRef={scopeRef} />
+  </div>
 }
 
 export function SessionsView({ chat, onOpenChat }: { chat: PiChatController; onOpenChat: () => void }) {

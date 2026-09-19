@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState, type ComponentType, type FormEvent } from 'react'
 import appPackage from '../package.json'
 import { ExtensionDialog } from './components/ExtensionDialog'
+import type { FileChatContext, FilesChatPosition } from './components/FilesChatPanel'
 import { Sidebar } from './components/Sidebar'
 import { PluginBrowser } from './components/PluginBrowser'
 import { PluginManager } from './components/PluginManager'
@@ -67,6 +68,9 @@ function DashboardApp({ config }: { config: DashboardConfig }) {
   const [projectsOpen, setProjectsOpen] = useState(false)
   const [themesOpen, setThemesOpen] = useState(false)
   const [terminalMounted, setTerminalMounted] = useState(view === 'terminal')
+  const [filesChatOpen, setFilesChatOpen] = useState(false)
+  const [filesChatPosition, setFilesChatPosition] = useState<FilesChatPosition | null>(null)
+  const [fileChatContext, setFileChatContext] = useState<FileChatContext>()
   const chat = usePiChat()
   const pluginRegistry = usePlugins(config.features.includes('plugins'))
   const activePlugin = pluginRegistry.plugins.find((plugin) => plugin.id === pluginId && plugin.enabled)
@@ -188,7 +192,17 @@ function DashboardApp({ config }: { config: DashboardConfig }) {
             : view === 'chat'
             ? <ChatView chat={chat} />
             : view === 'files'
-              ? <FilesView workspaceRevision={chat.workspaceRevision} editable={config.features.includes('files-editor')} />
+              ? <FilesView
+                  workspaceRevision={chat.workspaceRevision}
+                  editable={config.features.includes('files-editor')}
+                  chat={chat}
+                  chatOpen={filesChatOpen}
+                  onChatOpenChange={setFilesChatOpen}
+                  chatPosition={filesChatPosition}
+                  onChatPositionChange={setFilesChatPosition}
+                  fileContext={fileChatContext}
+                  onFileContextChange={setFileChatContext}
+                />
               : view === 'terminal'
                 ? null
               : view === 'sessions'

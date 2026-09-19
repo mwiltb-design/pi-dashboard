@@ -26,11 +26,17 @@ function languageExtensions(language: string) {
   }
 }
 
-export function SourceEditor({ content, language, editable, onChange }: {
+export interface EditorSelectionContext {
+  cursor: { line: number; column: number }
+  selection?: { text: string; fromLine: number; toLine: number; truncated: boolean }
+}
+
+export function SourceEditor({ content, language, editable, onChange, onSelectionChange }: {
   content: string
   language: string
   editable: boolean
   onChange?: (value: string) => void
+  onSelectionChange?: (context: EditorSelectionContext) => void
 }) {
   return (
     <CodeMirror
@@ -51,6 +57,27 @@ export function SourceEditor({ content, language, editable, onChange }: {
         autocompletion: editable,
       }}
       onChange={onChange}
+      onUpdate={(update) => {
+        if (!onSelectionChange || (!update.selectionSet && !update.docChanged)) return
+        const range = update.state.selection.main
+        const cursorLine = update.state.doc.lineAt(range.head)
+        const start = Math.min(range.from, range.to)
+        const end = Math.max(range.from, range.to)
+        const selected = end > start ? update.state.doc.sliceString(start, Math.min(end, start + 12_001)) : ''
+        const truncated = selected.length > 12_000
+        const selectionEnd = Math.max(start, end - 1)
+        onSelectionChange({
+          cursor: { line: cursorLine.number, column: range.head - cursorLine.from + 1 },
+          ...(selected ? {
+            selection: {
+              text: selected.slice(0, 12_000),
+              fromLine: update.state.doc.lineAt(start).number,
+              toLine: update.state.doc.lineAt(selectionEnd).number,
+              truncated,
+            },
+          } : {}),
+        })
+      }}
     />
   )
 }

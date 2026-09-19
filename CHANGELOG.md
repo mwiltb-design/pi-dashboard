@@ -4,6 +4,19 @@ This file records user-facing Foci Dashboard upgrades. Versions follow [Semantic
 
 ## [Unreleased]
 
+## [1.0.0-alpha.4] - 2026-09-19
+
+### Added
+
+- Added a movable chat panel to the Files tab that mirrors and submits to the active main Pi session through the existing shared chat connection.
+- Added visible, removable current-file context with workspace-relative path, cursor position, and selected text capped at 12,000 characters.
+- Added responsive panel positioning, viewport clamping, Escape-to-minimize, focus restoration, and a reset-position control.
+
+### Changed
+
+- Extracted a reusable chat composer so the main Chat view and compact Files panel share send, stop, connection, and keyboard behavior.
+- Preserved panel state across navigation and reset draft-only context when the active chat session changes.
+
 ## [1.0.0-alpha.3] - 2026-09-17
 
 ### Changed
@@ -39,7 +52,8 @@ This file records user-facing Foci Dashboard upgrades. Versions follow [Semantic
 - Initial desktop alpha with Pi chat, project files, sessions, skills, plugins, optional terminal and previewer, remote access, and bounded multi-provider workers.
 - Durable worker supervision, serialized task execution, cancellation, recovery, continuation, and bounded change previews.
 
-[Unreleased]: https://github.com/mwiltb-design/pi-dashboard/compare/v1.0.0-alpha.3...HEAD
+[Unreleased]: https://github.com/mwiltb-design/pi-dashboard/compare/v1.0.0-alpha.4...HEAD
+[1.0.0-alpha.4]: https://github.com/mwiltb-design/pi-dashboard/compare/v1.0.0-alpha.3...v1.0.0-alpha.4
 [1.0.0-alpha.3]: https://github.com/mwiltb-design/pi-dashboard/compare/v1.0.0-alpha.2...v1.0.0-alpha.3
 [1.0.0-alpha.2]: https://github.com/mwiltb-design/pi-dashboard/compare/1f10fd6...v1.0.0-alpha.2
 [1.0.0-alpha.1]: https://github.com/mwiltb-design/pi-dashboard/tree/1f10fd6
