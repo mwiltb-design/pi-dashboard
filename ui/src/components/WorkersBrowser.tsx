@@ -49,6 +49,8 @@ export function WorkersBrowser({ onOpenSession }: { onOpenSession: (sessionId: s
   const [selectedModelKey, setSelectedModelKey] = useState('default')
   const [selectedThinking, setSelectedThinking] = useState('default')
   const [codexModel, setCodexModel] = useState('')
+  const [antigravityModel, setAntigravityModel] = useState('gemini-3.8-flash')
+  const [antigravityEffort, setAntigravityEffort] = useState('high')
   const [turnLimit, setTurnLimit] = useState(8)
   const [timeoutMinutes, setTimeoutMinutes] = useState(10)
   const [resultLimitKb, setResultLimitKb] = useState(12)
@@ -169,7 +171,10 @@ export function WorkersBrowser({ onOpenSession }: { onOpenSession: (sessionId: s
       }
     }
     if (selectedProviderId === 'codex-cli' && codexModel.trim()) modelPayload = { provider: 'openai', id: codexModel.trim() }
-    const thinkingPayload = selectedThinking !== 'default' && selectedProviderId === 'sub-pi' ? selectedThinking : undefined
+    if (selectedProviderId === 'antigravity-cli' && antigravityModel) modelPayload = { provider: 'antigravity', id: antigravityModel }
+    const thinkingPayload = selectedProviderId === 'sub-pi'
+      ? (selectedThinking !== 'default' ? selectedThinking : undefined)
+      : selectedProviderId === 'antigravity-cli' ? antigravityEffort : undefined
 
     const boundsPayload = {
       turnLimit,
@@ -447,6 +452,27 @@ export function WorkersBrowser({ onOpenSession }: { onOpenSession: (sessionId: s
                       {availableThinking.map((level) => (
                         <option key={level} value={level}>{level}</option>
                       ))}
+                    </select>
+                  </label>
+                </div>
+              )}
+
+              {selectedProviderId === 'antigravity-cli' && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px', marginTop: '10px', marginBottom: '8px' }}>
+                  <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px', color: 'var(--muted)' }}>
+                    <span>Antigravity Model:</span>
+                    <select value={antigravityModel} onChange={(e) => setAntigravityModel(e.target.value)} disabled={workers.busy || currentProvider?.status !== 'ready'} style={{ padding: '8px 10px', background: 'var(--field)', color: 'var(--text)', border: '1px solid var(--line)', borderRadius: '7px', font: '11px sans-serif' }}>
+                      <option value="gemini-3.8-flash">Gemini 3.8 Flash</option>
+                      <option value="gemini-3.7-flash">Gemini 3.7 Flash</option>
+                      <option value="gemini-3.1-pro">Gemini 3.1 Pro</option>
+                    </select>
+                  </label>
+                  <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px', color: 'var(--muted)' }}>
+                    <span>Reasoning Effort:</span>
+                    <select value={antigravityEffort} onChange={(e) => setAntigravityEffort(e.target.value)} disabled={workers.busy || currentProvider?.status !== 'ready'} style={{ padding: '8px 10px', background: 'var(--field)', color: 'var(--text)', border: '1px solid var(--line)', borderRadius: '7px', font: '11px sans-serif' }}>
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
                     </select>
                   </label>
                 </div>

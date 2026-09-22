@@ -69,6 +69,9 @@ export interface AntigravityWorkerOptions {
   antigravityHome?: string
 }
 
+const APPROVED_MODELS = new Set(['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.1-pro'])
+const APPROVED_EFFORTS = new Set(['low', 'medium', 'high'])
+
 export class AntigravityWorkerAdapter implements WorkerAdapter {
   private active?: { taskId: string; child: ChildProcess; identity: Promise<ProcessIdentity | undefined> }
 
@@ -89,7 +92,7 @@ export class AntigravityWorkerAdapter implements WorkerAdapter {
       statusLabel: ready ? 'Installed and ready' : this.options.enabled ? 'Installed; select Connect to sign in' : 'Disabled by configuration',
       modes: ['research', 'review', 'implement'] as WorkerMode[],
       enabled: this.options.enabled,
-      capabilities: { nativeSessions: false, continuation: false, structuredEvents: false, cancellation: true, modelSelection: false },
+      capabilities: { nativeSessions: false, continuation: false, structuredEvents: false, cancellation: true, modelSelection: true },
       loginCommand: 'exec agy',
       manageCommand: 'exec agy',
     }
@@ -100,7 +103,17 @@ export class AntigravityWorkerAdapter implements WorkerAdapter {
     const before = (await this.options.git.status()).entries
     const timeout = `${Math.max(60, Math.ceil(input.bounds.timeoutMs / 1_000))}s`
     const command = resolveExecutable('agy')
+    const requestedModel = input.model?.id
+    if (requestedModel && !APPROVED_MODELS.has(requestedModel)) {
+      throw new Error(`Antigravity model '${requestedModel}' is not approved`)
+    }
+    const requestedEffort = input.thinkingLevel
+    if (requestedEffort && !APPROVED_EFFORTS.has(requestedEffort)) {
+      throw new Error(`Antigravity effort '${requestedEffort}' is not approved; use low, medium, or high`)
+    }
     const args = [
+      ...(requestedModel ? ['--model', requestedModel] : []),
+      ...(requestedEffort ? ['--effort', requestedEffort] : []),
       '--add-dir', this.options.workspace,
       '--print', workerPrompt(input, this.options.workspace),
       '--sandbox',

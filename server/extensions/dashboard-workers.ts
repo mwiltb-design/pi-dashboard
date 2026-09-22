@@ -224,6 +224,72 @@ export default function dashboardWorkers(pi: ExtensionAPI) {
   })
 
   pi.registerTool({
+    name: 'dashboard_continue_worker_task',
+    label: 'Continue Worker Task',
+    description: 'Continue an existing logical worker task as a new run, preserving its provider, workspace, permission mode, and run history. Use native continuation only where supported; otherwise Dashboard uses a labeled saved handoff.',
+    promptSnippet: 'Continue an existing worker task after reviewing its result or verification findings',
+    promptGuidelines: [
+      'Use the existing taskId; do not submit a new task when a logical task should continue.',
+      'Provide a focused continuation instruction and include concrete verification findings or remaining work.',
+      'Review the returned continuation mode and task/run status. Native continuation is provider-specific; saved handoff is a new provider session.',
+      'Do not use continuation to switch provider, project, permission mode, or unrelated scope.',
+    ],
+    parameters: Type.Object({
+      taskId: Type.String({ minLength: 1, description: 'The existing logical worker task ID.' }),
+      prompt: Type.String({ minLength: 1, maxLength: 12000, description: 'Focused next instruction, verification findings, or repair request.' }),
+      mode: Type.Optional(Type.Union([
+        Type.Literal('research'),
+        Type.Literal('review'),
+        Type.Literal('implement'),
+      ], { description: 'Optional mode; Dashboard rejects permission increases.' })),
+      forceHandoff: Type.Optional(Type.Boolean({ description: 'Force a saved-handoff continuation instead of native continuation when available.' })),
+    }),
+    async execute(toolCallId, parameters) {
+      try {
+        const task = await request('POST', `/internal/workers/tasks/${encodeURIComponent(parameters.taskId.trim())}/continue`, {
+          prompt: parameters.prompt,
+          ...(parameters.mode ? { mode: parameters.mode } : {}),
+          ...(parameters.forceHandoff ? { forceHandoff: true } : {}),
+        })
+        const summary = {
+          taskId: String(task.id ?? parameters.taskId),
+          runId: task.currentRunId,
+          status: task.status,
+          continuationMode: Array.isArray(task.runs)
+            ? (task.runs as Record<string, unknown>[]).find((run) => run.id === task.currentRunId)?.continuationKind
+            : undefined,
+          providerId: task.providerId,
+          providerName: task.providerName,
+          sessionId: task.sessionId,
+          message: 'Worker continuation accepted as a new run under the existing logical task.',
+        }
+        return {
+          content: [{ type: 'text', text: JSON.stringify(summary, null, 2) }],
+          details: summary,
+          isError: false,
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Worker continuation failed'
+        const details = {
+          taskId: parameters.taskId,
+          runId: undefined,
+          status: 'failed',
+          continuationMode: undefined,
+          providerId: undefined,
+          providerName: undefined,
+          sessionId: undefined,
+          message,
+        }
+        return {
+          content: [{ type: 'text', text: message }],
+          details,
+          isError: true,
+        }
+      }
+    },
+  })
+
+  pi.registerTool({
     name: 'dashboard_get_worker_task',
     label: 'Get Worker Task Status',
     description: 'Check the status and retrieve the result of an existing worker task by its taskId. Use this tool when a previous delegation returned waitEnded: true or status: "still_running" instead of rerunning the task.',

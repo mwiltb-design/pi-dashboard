@@ -645,6 +645,18 @@ async function handleHttp(request: IncomingMessage, response: ServerResponse): P
       json(response, task ? 200 : 404, task ?? { error: 'Worker task not found' })
       return
     }
+    const internalContinueMatch = url.pathname.match(/^\/internal\/workers\/tasks\/([^/]+)\/continue$/)
+    if (request.method === 'POST' && internalContinueMatch) {
+      const body = await readJsonBody(request)
+      const task = await workers.continueTask(
+        decodeURIComponent(internalContinueMatch[1]),
+        typeof body.prompt === 'string' ? body.prompt : '',
+        typeof body.mode === 'string' ? body.mode : undefined,
+        body.forceHandoff === true,
+      )
+      json(response, 202, task)
+      return
+    }
     json(response, 404, { error: 'Not found' })
     return
   }
