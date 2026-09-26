@@ -708,6 +708,52 @@ async function handleHttp(request: IncomingMessage, response: ServerResponse): P
     json(response, 200, { authenticated: false })
     return
   }
+
+  // The packaged UI must be able to load before the user can authenticate.
+  // API routes remain behind the authentication check below.
+  if (request.method === 'GET' && uiDistDir && !url.pathname.startsWith('/api') && !url.pathname.startsWith('/internal') && !url.pathname.startsWith('/ws')) {
+    const sanitized = url.pathname.replace(/^\/+/, '')
+    const candidate = sanitized ? resolve(uiDistDir, sanitized) : resolve(uiDistDir, 'index.html')
+    let targetFile = resolve(uiDistDir, 'index.html')
+    try {
+      if (existsSync(candidate) && (await stat(candidate)).isFile()) {
+        targetFile = candidate
+      }
+    } catch {}
+
+    if (existsSync(targetFile)) {
+      const ext = extname(targetFile).toLowerCase()
+      const mimeMap: Record<string, string> = {
+        '.html': 'text/html; charset=utf-8',
+        '.htm': 'text/html; charset=utf-8',
+        '.css': 'text/css; charset=utf-8',
+        '.js': 'application/javascript; charset=utf-8',
+        '.mjs': 'application/javascript; charset=utf-8',
+        '.json': 'application/json; charset=utf-8',
+        '.svg': 'image/svg+xml',
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.gif': 'image/gif',
+        '.webp': 'image/webp',
+        '.ico': 'image/x-icon',
+        '.txt': 'text/plain; charset=utf-8',
+        '.woff2': 'font/woff2',
+        '.woff': 'font/woff',
+        '.ttf': 'font/ttf',
+      }
+      const fileBuffer = await readFile(targetFile)
+      response.writeHead(200, {
+        'content-type': mimeMap[ext] || 'application/octet-stream',
+        'content-length': fileBuffer.length,
+        'cache-control': ext === '.html' ? 'no-cache' : 'public, max-age=31536000, immutable',
+        'x-content-type-options': 'nosniff',
+      })
+      response.end(fileBuffer)
+      return
+    }
+  }
+
   if (auth.enabled && !auth.authenticate(request)) {
     json(response, 401, { error: 'Authentication required' })
     return
@@ -1527,49 +1573,6 @@ async function handleHttp(request: IncomingMessage, response: ServerResponse): P
       limit: Number.isFinite(limit) ? limit : 100,
     }) })
     return
-  }
-
-  if (request.method === 'GET' && uiDistDir && !url.pathname.startsWith('/api') && !url.pathname.startsWith('/internal') && !url.pathname.startsWith('/ws')) {
-    const sanitized = url.pathname.replace(/^\/+/, '')
-    const candidate = sanitized ? resolve(uiDistDir, sanitized) : resolve(uiDistDir, 'index.html')
-    let targetFile = resolve(uiDistDir, 'index.html')
-    try {
-      if (existsSync(candidate) && (await stat(candidate)).isFile()) {
-        targetFile = candidate
-      }
-    } catch {}
-
-    if (existsSync(targetFile)) {
-      const ext = extname(targetFile).toLowerCase()
-      const mimeMap: Record<string, string> = {
-        '.html': 'text/html; charset=utf-8',
-        '.htm': 'text/html; charset=utf-8',
-        '.css': 'text/css; charset=utf-8',
-        '.js': 'application/javascript; charset=utf-8',
-        '.mjs': 'application/javascript; charset=utf-8',
-        '.json': 'application/json; charset=utf-8',
-        '.svg': 'image/svg+xml',
-        '.png': 'image/png',
-        '.jpg': 'image/jpeg',
-        '.jpeg': 'image/jpeg',
-        '.gif': 'image/gif',
-        '.webp': 'image/webp',
-        '.ico': 'image/x-icon',
-        '.txt': 'text/plain; charset=utf-8',
-        '.woff2': 'font/woff2',
-        '.woff': 'font/woff',
-        '.ttf': 'font/ttf',
-      }
-      const fileBuffer = await readFile(targetFile)
-      response.writeHead(200, {
-        'content-type': mimeMap[ext] || 'application/octet-stream',
-        'content-length': fileBuffer.length,
-        'cache-control': ext === '.html' ? 'no-cache' : 'public, max-age=31536000, immutable',
-        'x-content-type-options': 'nosniff',
-      })
-      response.end(fileBuffer)
-      return
-    }
   }
 
   json(response, 404, { error: 'Not found' })
