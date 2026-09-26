@@ -4,6 +4,10 @@ This file records user-facing Foci Dashboard upgrades. Versions follow [Semantic
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed the packaged desktop app so its interface and login screen load before authentication while protected API routes remain behind authentication.
+
 ## [1.0.0-alpha.4] - 2026-09-19
 
 ### Added
