@@ -39,7 +39,7 @@ See [Worker supervisor operations](./docs/worker-supervisor.md) for storage, rec
 
 ## Install or run on Windows
 
-GitHub Releases currently lists **1.0.0-alpha.3**; this repository's `main` branch contains the newer **1.0.0-alpha.4** source and the desktop login fix. To build the current Windows installer:
+The latest prerelease is **1.0.0-alpha.4**. Download the Windows installer from the [GitHub release page](https://github.com/mwiltb-design/pi-dashboard/releases/tag/v1.0.0-alpha.4), or build it from source using the steps below:
 
 1. Install [Node.js 20 or newer](https://nodejs.org/) and [Git](https://git-scm.com/).
 2. In PowerShell, run:
@@ -59,11 +59,11 @@ To run from a source checkout instead of installing, use `.\scripts\dev.ps1`. Fo
 
 ## Upgrades and version history
 
-The current source version is **1.0.0-alpha.4**. Recent upgrades:
+The current version is **1.0.0-alpha.4**. Recent upgrades:
 
 | Version | Upgrade |
 | --- | --- |
-| `1.0.0-alpha.4` | Movable Files-tab chat panel sharing the active Pi session, with visible open-file, cursor, and selected-text context. |
+| `1.0.0-alpha.4` | Windows installer, desktop login fix, and movable Files-tab chat panel sharing the active Pi session, with visible open-file, cursor, and selected-text context. |
 | `1.0.0-alpha.3` | First-pass Foci Dashboard rebrand with updated UI branding, docs, launcher copy, and Foci logo/favicon assets. |
 | `1.0.0-alpha.2` | Files-tab uploads, collision-safe `uploaded/` storage, and inline PDF viewing. |
 | `1.0.0-alpha.1` | Initial desktop alpha and durable multi-provider worker supervision. |

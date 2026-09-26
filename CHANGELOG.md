@@ -4,10 +4,6 @@ This file records user-facing Foci Dashboard upgrades. Versions follow [Semantic
 
 ## [Unreleased]
 
-### Fixed
-
-- Fixed the packaged desktop app so its interface and login screen load before authentication while protected API routes remain behind authentication.
-
 ## [1.0.0-alpha.4] - 2026-09-19
 
 ### Added
@@ -20,6 +16,10 @@ This file records user-facing Foci Dashboard upgrades. Versions follow [Semantic
 
 - Extracted a reusable chat composer so the main Chat view and compact Files panel share send, stop, connection, and keyboard behavior.
 - Preserved panel state across navigation and reset draft-only context when the active chat session changes.
+
+### Fixed
+
+- Fixed the packaged desktop app so its interface and login screen load before authentication while protected API routes remain behind authentication.
 
 ## [1.0.0-alpha.3] - 2026-09-17
 
