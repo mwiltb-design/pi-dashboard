@@ -39,7 +39,7 @@ See [Worker supervisor operations](./docs/worker-supervisor.md) for storage, rec
 
 ## Install or run on Windows
 
-The repository contains source for **1.0.0-alpha.4**. The latest source may be newer than the installer on the GitHub Releases page. To build a Windows installer:
+GitHub Releases currently lists **1.0.0-alpha.3**; this repository's `main` branch contains the newer **1.0.0-alpha.4** source and the desktop login fix. To build the current Windows installer:
 
 1. Install [Node.js 20 or newer](https://nodejs.org/) and [Git](https://git-scm.com/).
 2. In PowerShell, run:
@@ -53,7 +53,7 @@ The repository contains source for **1.0.0-alpha.4**. The latest source may be n
 
 3. When the build finishes, run `dist\Foci-Dashboard-Setup-<version>.exe`.
 
-The installer is not code-signed at this time, so Windows may show a SmartScreen warning. Only run an installer you built yourself or obtained from a trusted project release.
+If you build without a signing certificate, Windows may show a SmartScreen warning. Only run an installer you built yourself or obtained from a trusted project release.
 
 To run from a source checkout instead of installing, use `.\scripts\dev.ps1`. For macOS or Linux development, use `./scripts/dev.sh`; building the Windows installer is Windows-only.
 
