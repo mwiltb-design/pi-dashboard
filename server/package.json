@@ -6,7 +6,7 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc --noEmit",
+    "build": "node build.js",
     "test": "tsx --test test/*.test.ts",
     "start": "tsx src/index.ts"
   },

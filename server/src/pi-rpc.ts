@@ -1,19 +1,12 @@
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import { existsSync } from 'node:fs'
+import { spawn, execSync, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { EventEmitter } from 'node:events'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { attachJsonlReader } from './jsonl.js'
 import { processGroupOptions, terminateProcess } from './process-control.js'
+import { resolvePiCli, resolveNode20CompatScript, resolveNodeExecutable } from './runtime-compat.js'
 import type { JsonObject, RpcEvent, RpcResponse } from './types.js'
-
-function resolvePiCli(): string {
-  try {
-    const mainUrl = import.meta.resolve('@earendil-works/pi-coding-agent')
-    return resolve(dirname(fileURLToPath(mainUrl)), 'cli.js')
-  } catch {
-    return resolve(process.cwd(), 'node_modules/@earendil-works/pi-coding-agent/dist/cli.js')
-  }
-}
 
 interface PendingRequest {
   resolve: (response: RpcResponse) => void
@@ -60,12 +53,18 @@ export class PiRpcProcess extends EventEmitter {
     this.stopping = false
     this.stderr = ''
     const cliPath = resolvePiCli()
-    const command = this.options.command ?? process.execPath
-    const baseArgs = this.options.command ? [] : [cliPath]
+    const compatScript = resolveNode20CompatScript()
+    const compatArgs = (compatScript && existsSync(compatScript)) ? ['-r', compatScript] : []
+    const command = this.options.command ?? resolveNodeExecutable()
+    const baseArgs = this.options.command ? [] : [...compatArgs, cliPath]
     const args = this.options.args ?? ['--mode', 'rpc', '--continue', '--name', 'Foci Dashboard']
     const finalArgs = [...baseArgs, ...args]
     const childEnv = { ...process.env, ...this.options.env }
     delete childEnv.PI_DASHBOARD_AUTH_TOKEN
+    const isElectronBinary = command === process.execPath && !command.toLowerCase().endsWith('node.exe') && !command.toLowerCase().endsWith('node')
+    if (isElectronBinary) {
+      childEnv.ELECTRON_RUN_AS_NODE = '1'
+    }
     const child = spawn(command, finalArgs, {
       cwd: this.options.cwd,
       env: childEnv,

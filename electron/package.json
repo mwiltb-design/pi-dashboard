@@ -1,14 +1,110 @@
 {
   "name": "pi-dashboard-electron",
   "version": "1.0.0-alpha.4",
-  "description": "Electron shell wrapper for Foci Dashboard",
+  "description": "Foci Dashboard Desktop Application",
+  "author": "mwiltb-design",
   "main": "main.cjs",
   "scripts": {
     "start": "electron .",
     "dist:win": "electron-builder --win"
   },
+  "build": {
+    "appId": "dev.focidashboard.desktop",
+    "productName": "Foci Dashboard",
+    "copyright": "Copyright © 2026 mwiltb-design",
+    "electronVersion": "33.4.11",
+    "directories": {
+      "output": "../dist"
+    },
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "assets/**/*",
+      {
+        "from": "../server/dist",
+        "to": "server/dist",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "../server/extensions",
+        "to": "server/extensions",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "../server/skills",
+        "to": "server/skills",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "../server/templates",
+        "to": "server/templates",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "../server",
+        "to": "server",
+        "filter": [
+          "package.json"
+        ]
+      },
+      {
+        "from": "../server/node_modules",
+        "to": "server/node_modules",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "../ui/dist",
+        "to": "ui/dist",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "../plugins",
+        "to": "plugins",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "**/node-pty/**",
+      "**/@homebridge/node-pty-prebuilt-multiarch/**"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Foci Dashboard",
+      "artifactName": "Foci-Dashboard-Setup-${version}.${ext}"
+    }
+  },
   "devDependencies": {
-    "electron": "^33.2.1",
+    "app-builder-bin": "^5.0.0-alpha.10",
+    "electron": "33.4.11",
     "electron-builder": "^25.1.8"
   }
 }

@@ -1,0 +1,91 @@
+{
+  "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
+  "appId": "dev.focidashboard.desktop",
+  "productName": "Foci Dashboard",
+  "copyright": "Copyright © 2026 mwiltb-design",
+  "electronVersion": "33.4.11",
+  "npmRebuild": false,
+  "directories": {
+    "output": "dist"
+  },
+  "files": [
+    "electron/main.cjs",
+    "electron/preload.cjs",
+    "package.json"
+  ],
+  "extraResources": [
+    {
+      "from": "assets",
+      "to": "assets"
+    },
+    {
+      "from": "server/dist",
+      "to": "server/dist"
+    },
+    {
+      "from": "server/extensions",
+      "to": "server/extensions"
+    },
+    {
+      "from": "server/skills",
+      "to": "server/skills"
+    },
+    {
+      "from": "server/templates",
+      "to": "server/templates"
+    },
+    {
+      "from": "server/package.json",
+      "to": "server/package.json"
+    },
+    {
+      "from": "node_modules/@homebridge",
+      "to": "server/node_modules/@homebridge"
+    },
+    {
+      "from": "node_modules/@homebridge",
+      "to": "node_modules/@homebridge"
+    },
+    {
+      "from": "node_modules/@earendil-works",
+      "to": "node_modules/@earendil-works"
+    },
+    {
+      "from": "node_modules/@earendil-works",
+      "to": "server/node_modules/@earendil-works"
+    },
+    {
+      "from": "ui/dist",
+      "to": "ui/dist"
+    },
+    {
+      "from": "plugins",
+      "to": "plugins"
+    },
+    {
+      "from": "server/src",
+      "to": "server/src"
+    },
+    {
+      "from": "packages",
+      "to": "packages"
+    }
+  ],
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": ["x64"]
+      }
+    ],
+    "icon": "assets/icon.ico"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "Foci Dashboard",
+    "artifactName": "Foci-Dashboard-Setup-${version}.${ext}"
+  }
+}

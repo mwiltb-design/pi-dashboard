@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
+import { existsSync } from 'node:fs'
 import { mkdir, open, readFile } from 'node:fs/promises'
 import { connect } from 'node:net'
 import { tmpdir } from 'node:os'
@@ -71,8 +72,14 @@ export class WorkerSupervisorClient {
     } catch {
       // No owner is listening yet. The named pipe arbitrates simultaneous launch attempts.
     }
-    const entry = resolve(import.meta.dirname, 'worker-supervisor-process.ts')
-    const child = spawn(process.execPath, ['--import', 'tsx', entry, '--config', this.configPath], {
+    const entryJs = resolve(import.meta.dirname, 'worker-supervisor-process.js')
+    const entryTs = resolve(import.meta.dirname, 'worker-supervisor-process.ts')
+    const isCompiled = existsSync(entryJs)
+    const entry = isCompiled ? entryJs : entryTs
+    const spawnArgs = isCompiled
+      ? [entry, '--config', this.configPath]
+      : ['--import', 'tsx', entry, '--config', this.configPath]
+    const child = spawn(process.execPath, spawnArgs, {
       cwd: resolve(import.meta.dirname, '..'),
       detached: true,
       windowsHide: true,

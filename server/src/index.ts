@@ -1,3 +1,8 @@
+import workerThreads from 'node:worker_threads'
+if (typeof (workerThreads as any).markAsUncloneable !== 'function') {
+  ;(workerThreads as any).markAsUncloneable = () => {}
+}
+
 import { spawn } from 'node:child_process'
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -74,15 +79,32 @@ let sessionRoot = process.env.PI_SESSION_ROOT ?? rpcSessionDir
 let activityPath = process.env.PI_DASHBOARD_ACTIVITY_PATH ?? resolve(projectDataDir, 'activity.jsonl')
 let sessionArchivePath = process.env.PI_DASHBOARD_SESSION_ARCHIVE_PATH ?? resolve(projectDataDir, 'sessions-archive.json')
 let runtimeInfoPath = process.env.PI_DASHBOARD_RUNTIME_INFO_PATH ?? resolve(projectDataDir, 'runtime-tools.json')
-const runtimeInfoExtension = process.env.PI_DASHBOARD_RUNTIME_INFO_EXTENSION ?? resolve(process.cwd(), 'extensions/dashboard-runtime-info.ts')
-const curatedMemoryExtension = process.env.PI_DASHBOARD_CURATED_MEMORY_EXTENSION ?? resolve(process.cwd(), 'extensions/curated-memory.ts')
-const memoryCheckpointExtension = process.env.PI_DASHBOARD_MEMORY_CHECKPOINT_EXTENSION ?? resolve(process.cwd(), 'extensions/memory-checkpoint.ts')
-const pluginToolsExtension = process.env.PI_DASHBOARD_PLUGIN_TOOLS_EXTENSION ?? resolve(process.cwd(), 'extensions/dashboard-plugin-tools.ts')
-const workersExtension = process.env.PI_DASHBOARD_WORKERS_EXTENSION ?? resolve(process.cwd(), 'extensions/dashboard-workers.ts')
-const dashboardPluginAuthoringSkill = process.env.PI_DASHBOARD_PLUGIN_AUTHORING_SKILL_PATH ?? resolve(process.cwd(), 'skills/dashboard-plugin-authoring')
-const dashboardReferenceSkill = process.env.PI_DASHBOARD_REFERENCE_SKILL_PATH ?? resolve(process.cwd(), 'skills/dashboard-reference')
+function resolveServerAsset(rel: string): string {
+  const candidates = [
+    resolve(import.meta.dirname ?? process.cwd(), '..', rel),
+    resolve(import.meta.dirname ?? process.cwd(), rel),
+    resolve(process.cwd(), rel),
+    resolve(process.cwd(), 'server', rel),
+  ]
+  return candidates.find((c) => existsSync(c)) ?? resolve(process.cwd(), rel)
+}
+
+const runtimeInfoExtension = process.env.PI_DASHBOARD_RUNTIME_INFO_EXTENSION ?? resolveServerAsset('extensions/dashboard-runtime-info.ts')
+const curatedMemoryExtension = process.env.PI_DASHBOARD_CURATED_MEMORY_EXTENSION ?? resolveServerAsset('extensions/curated-memory.ts')
+const memoryCheckpointExtension = process.env.PI_DASHBOARD_MEMORY_CHECKPOINT_EXTENSION ?? resolveServerAsset('extensions/memory-checkpoint.ts')
+const pluginToolsExtension = process.env.PI_DASHBOARD_PLUGIN_TOOLS_EXTENSION ?? resolveServerAsset('extensions/dashboard-plugin-tools.ts')
+const workersExtension = process.env.PI_DASHBOARD_WORKERS_EXTENSION ?? resolveServerAsset('extensions/dashboard-workers.ts')
+const dashboardPluginAuthoringSkill = process.env.PI_DASHBOARD_PLUGIN_AUTHORING_SKILL_PATH ?? resolveServerAsset('skills/dashboard-plugin-authoring')
+const dashboardReferenceSkill = process.env.PI_DASHBOARD_REFERENCE_SKILL_PATH ?? resolveServerAsset('skills/dashboard-reference')
 const repoPluginDir = resolve(import.meta.dirname ?? process.cwd(), '../../plugins')
 const pluginCodeRoot = process.env.PI_DASHBOARD_PLUGIN_CODE_ROOT ?? (existsSync(repoPluginDir) ? repoPluginDir : resolve(process.cwd(), 'plugins'))
+const uiDistCandidates = [
+  resolve(import.meta.dirname ?? process.cwd(), '../../ui/dist'),
+  resolve(import.meta.dirname ?? process.cwd(), '../ui/dist'),
+  resolve(process.cwd(), 'ui/dist'),
+  resolve(process.cwd(), '../ui/dist'),
+]
+const uiDistDir = process.env.PI_DASHBOARD_UI_DIST ?? uiDistCandidates.find((dir) => existsSync(resolve(dir, 'index.html')))
 let pluginStateRoot = process.env.PI_DASHBOARD_PLUGIN_STATE_ROOT ?? resolve(projectDataDir, 'plugin-data')
 let pluginRuntimeSocketRoot = process.env.PI_DASHBOARD_PLUGIN_RUNTIME_SOCKET_ROOT ?? resolve(tmpdir(), `pi-plugins-${workspaceKey}`)
 const defaultCustomPluginRoot = resolve(defaultDashboardDataDir, 'plugins')
@@ -707,12 +729,16 @@ async function handleHttp(request: IncomingMessage, response: ServerResponse): P
   }
   if (request.method === 'POST' && url.pathname === '/api/provider-login/complete') {
     await providerLogin.stop()
-    await rpc.stop()
-    await rpc.start()
-    const models = await availableModels()
+    try {
+      await rpc.stop()
+      await rpc.start()
+    } catch (rpcErr) {
+      console.error('[ProviderLogin] Failed to restart Pi RPC during complete:', rpcErr)
+    }
+    const models = await availableModels().catch(() => [])
     const providers = [...new Set(models.map((model) => model.provider))].sort()
     record({ category: 'system', type: 'provider_login_refreshed', severity: 'info', summary: providers.length ? `Refreshed Pi login for ${providers.join(', ')}` : 'Refreshed Pi after provider login' })
-    await sendSnapshot()
+    await sendSnapshot().catch(() => {})
     json(response, 200, { active: false, providers, modelCount: models.length })
     return
   }
@@ -1502,6 +1528,50 @@ async function handleHttp(request: IncomingMessage, response: ServerResponse): P
     }) })
     return
   }
+
+  if (request.method === 'GET' && uiDistDir && !url.pathname.startsWith('/api') && !url.pathname.startsWith('/internal') && !url.pathname.startsWith('/ws')) {
+    const sanitized = url.pathname.replace(/^\/+/, '')
+    const candidate = sanitized ? resolve(uiDistDir, sanitized) : resolve(uiDistDir, 'index.html')
+    let targetFile = resolve(uiDistDir, 'index.html')
+    try {
+      if (existsSync(candidate) && (await stat(candidate)).isFile()) {
+        targetFile = candidate
+      }
+    } catch {}
+
+    if (existsSync(targetFile)) {
+      const ext = extname(targetFile).toLowerCase()
+      const mimeMap: Record<string, string> = {
+        '.html': 'text/html; charset=utf-8',
+        '.htm': 'text/html; charset=utf-8',
+        '.css': 'text/css; charset=utf-8',
+        '.js': 'application/javascript; charset=utf-8',
+        '.mjs': 'application/javascript; charset=utf-8',
+        '.json': 'application/json; charset=utf-8',
+        '.svg': 'image/svg+xml',
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.gif': 'image/gif',
+        '.webp': 'image/webp',
+        '.ico': 'image/x-icon',
+        '.txt': 'text/plain; charset=utf-8',
+        '.woff2': 'font/woff2',
+        '.woff': 'font/woff',
+        '.ttf': 'font/ttf',
+      }
+      const fileBuffer = await readFile(targetFile)
+      response.writeHead(200, {
+        'content-type': mimeMap[ext] || 'application/octet-stream',
+        'content-length': fileBuffer.length,
+        'cache-control': ext === '.html' ? 'no-cache' : 'public, max-age=31536000, immutable',
+        'x-content-type-options': 'nosniff',
+      })
+      response.end(fileBuffer)
+      return
+    }
+  }
+
   json(response, 404, { error: 'Not found' })
 }
 

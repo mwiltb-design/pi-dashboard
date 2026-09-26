@@ -4,6 +4,7 @@
   "description": "Standalone cross-platform desktop dashboard for Pi coding agent",
   "private": true,
   "type": "module",
+  "main": "electron/main.cjs",
   "workspaces": [
     "server",
     "ui",
@@ -14,7 +15,7 @@
     "dev:server": "npm --prefix server run dev",
     "dev:ui": "npm --prefix ui run dev",
     "build": "npm --prefix server run build && npm --prefix ui run build",
-    "dist:windows": "npm run build && npm --prefix electron run dist:win"
+    "dist:windows": "npm run build && electron-builder --win"
   },
   "keywords": [
     "pi",
@@ -26,5 +27,12 @@
   ],
   "author": "mwiltb-design",
   "license": "GPL-3.0",
-  "homepage": "https://focidashboard.dev"
+  "homepage": "https://focidashboard.dev",
+  "dependencies": {
+    "@homebridge/node-pty-prebuilt-multiarch": "^0.14.1"
+  },
+  "devDependencies": {
+    "app-builder-bin": "^5.0.0-alpha.13",
+    "electron-builder": "^26.15.3"
+  }
 }
