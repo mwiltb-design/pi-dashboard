@@ -5,7 +5,22 @@
 | Input | Action |
 | --- | --- |
 | `Enter` | Send the current chat message |
-| `Shift + Enter` | Insert a new line |
+| `Shift + Enter` | Insert a new line in the composer |
+
+## Files floating chat panel
+
+| Input / Action | Result |
+| --- | --- |
+| `Escape` | Minimize the floating Files chat panel |
+| Header drag | Reposition the panel across the viewport |
+| **Reset position** | Snap the panel back to its default bottom-right viewport anchor |
+
+## Sessions list
+
+| Input | Action |
+| --- | --- |
+| `Enter` | Save the inline session title edit |
+| `Escape` | Cancel the inline session title edit without saving |
 
 Buttons and tabs provide the supported Dashboard navigation. The application does not currently define global `Ctrl+K`, `Ctrl+Shift+F`, or terminal-toggle shortcuts.
 
@@ -16,6 +31,6 @@ Slash commands are handled by the active Pi runtime and can vary with its instal
 ## Worker controls
 
 - **Cancel task** requests cleanup of the active worker process tree.
-- **Continue** submits a follow-up using the stored provider session when supported.
+- **Continue** submits a follow-up using the stored provider session when supported (or a saved handoff).
 - **Use saved handoff** starts a new provider session with a structured summary after native continuation fails or is unavailable.
 - **View changes** loads the bounded text changes recorded for the selected run.

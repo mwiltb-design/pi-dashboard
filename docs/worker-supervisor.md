@@ -13,10 +13,12 @@ Foci runs delegated CLI work through one lightweight supervisor for each project
 
 On Windows, the supervisor records the worker PID and creation timestamp, then terminates the full process tree with `taskkill /T` and a forced fallback. The creation timestamp is checked before termination to avoid a recycled-PID kill. Other Codex, Claude, Antigravity, Node, and Pi sessions are not targeted by executable name.
 
-## Continuation
+## Continuation and models
 
 - Codex CLI supports native continuation with its recorded thread ID.
-- Other providers currently start a new session with a structured saved handoff. The UI labels this as a new session.
+- Other providers (Sub-PI, Antigravity CLI, Claude CLI) currently start a new session with a structured saved handoff that carries forward task objectives, run findings, and dirty-file diffs.
+- The primary Pi assistant in Chat can also inspect and continue worker tasks programmatically via `dashboard_continue_worker_task`.
+- Antigravity CLI supports model selection (`gemini-3.8-flash`, `gemini-3.7-flash`, `gemini-3.1-pro`) and configurable reasoning effort (`low`, `medium`, `high`).
 - Continuations keep the original workspace, provider, and permission mode. Start a new task to change from read-only to implementation permissions.
 - If a native Codex session is unavailable, the failed run remains visible and **Use saved handoff** starts a new session only after the user chooses it.
 

@@ -5,10 +5,10 @@ This repository contains the native desktop Foci Dashboard built with Electron, 
 ## Main screens
 
 - **Chat:** streamed Pi conversations and model controls
-- **Files:** project browser, Git state, and text editor
+- **Files:** project browser, Git state, text editor, multi-file uploads into `uploaded/`, read-only PDF previewer, and movable Pi chat panel with current-file/cursor context
 - **Terminal:** optional local pseudo-terminal
 - **App Previewer:** responsive workspace HTML and local development-server previews
-- **Sessions:** saved conversation history and session management
+- **Sessions:** saved conversation history, session switching, and inline session renaming
 - **Skills & Tools:** bundled and installed agent capabilities
 - **Workers:** durable bounded delegation to Sub-PI and enabled Antigravity, Codex, or Claude CLIs
 - **Plugins:** reviewed local plugin UI and optional hosted modules
@@ -16,10 +16,11 @@ This repository contains the native desktop Foci Dashboard built with Electron, 
 
 ## Main processes
 
-- `electron/main.cjs` starts the desktop window and chooses available local UI/backend ports.
+- `electron/main.cjs` starts the desktop window, handles production resources, and chooses available local UI/backend ports.
 - `server/src/index.ts` hosts the API, Pi RPC bridge, project services, sessions, plugins, terminal bridge, and a thin client for worker operations.
 - `server/src/worker-supervisor-process.ts` is started on demand per project data directory. It owns the durable worker queue and provider process lifecycle independently of a browser connection.
 - `ui/src/` is the React/Vite interface and proxies API/WebSocket requests to the backend.
+- Standalone packaging is configured via `electron-builder.json`, bundled with `server/build.js`, and produced via `npm run dist:windows`.
 
 The desktop launcher binds both services to `127.0.0.1`. Directly starting the backend without the launcher must set `HOST=127.0.0.1` when local-only binding is required.
 

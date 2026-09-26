@@ -4,18 +4,20 @@ Use this document for desktop startup, ports, workspaces, state, backup, and pri
 
 ## Starting the desktop application
 
-- **Desktop shortcut:** open the installed Foci Dashboard shortcut if configured.
+- **Windows Installer:** Run the packaged installer `Foci-Dashboard-Setup-<version>.exe`. The application installs under `%LOCALAPPDATA%\Programs\Foci Dashboard` and creates a desktop shortcut.
+- **Desktop shortcut:** Open the installed Foci Dashboard shortcut.
 - **Windows source checkout:** `./scripts/dev.ps1`
 - **macOS/Linux source checkout:** `./scripts/dev.sh`
+- **Building the Windows installer:** Run `npm run dist:windows` from the repository root (requires Node.js 20+ on Windows; artifacts are generated in `dist/`).
 
-The scripts install workspace dependencies when `server/node_modules` is absent and then launch Electron. Electron chooses available ports, starts the backend from `server/src/index.ts`, starts the Vite UI, and opens the window.
+The development scripts install workspace dependencies when `server/node_modules` is absent and then launch Electron. Electron chooses available ports, starts the backend from `server/src/index.ts`, starts the Vite UI, and opens the window.
 
 Default addresses:
 
 - UI: `http://127.0.0.1:5173`
 - Backend: `http://127.0.0.1:4317`
 
-Additional windows select the next available ports. The Electron launcher explicitly binds both services to localhost. When starting the backend directly, set `HOST=127.0.0.1`; its standalone fallback is not the desktop launcher's local-only configuration.
+Additional windows select the next available ports. The Electron launcher explicitly binds both services to localhost. When starting the backend directly, set `HOST=127.0.0.1`; its standalone fallback is not the desktop launcher's local-only configuration. Packaged desktop apps serve static UI assets before requiring authentication, while keeping API endpoints strictly authenticated.
 
 ## Projects
 

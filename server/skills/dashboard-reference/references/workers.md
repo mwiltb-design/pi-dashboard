@@ -8,6 +8,8 @@ The Dashboard can use Sub-PI and installed Antigravity (`agy`), Codex (`codex`),
 
 Workers inherit the local user's process permissions. The Dashboard scopes the process working directory and prompt to the selected project, and Codex receives its supported workspace sandbox setting. Always review external CLI changes.
 
+Antigravity CLI supports model selection (`gemini-3.8-flash`, `gemini-3.7-flash`, `gemini-3.1-pro`) and configurable reasoning effort (`low`, `medium`, `high`).
+
 ## Queue and supervisor
 
 One lightweight supervisor owns each project data directory through an authenticated local named pipe. One task executes at a time and additional tasks show a queue position. The UI or backend may reconnect without cancelling supervisor-owned work.
@@ -28,7 +30,11 @@ External CLI activity events are not model-turn limits.
 
 ## Continue and saved handoff
 
-Continue creates another run under the same logical task and keeps the original provider, workspace, and permission mode. Codex reuses its recorded thread when native continuation is available. Other providers, or an unavailable native session, use a clearly labeled new session with a structured saved handoff. A saved handoff summarizes prior work; it is not the original conversation and does not automatically replay commands.
+Continue creates another run under the same logical task and keeps the original provider, workspace, and permission mode.
+
+- **Codex CLI**: Reuses its recorded thread when native continuation is available.
+- **Other Providers (Sub-PI, Antigravity CLI, Claude CLI)**: Start a new session with a structured saved handoff summarizing prior objectives, findings, and dirty-file diffs.
+- **Pi Chat Integration**: The primary Pi assistant can continue tasks programmatically via `dashboard_continue_worker_task` or query task status via `dashboard_get_worker_task`.
 
 Start a new task if the provider, project, or permission mode must change.
 
