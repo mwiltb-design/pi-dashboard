@@ -46,7 +46,7 @@ export function normalizeMemoryCheckpointSettings(value: unknown): MemoryCheckpo
 export function memoryCheckpointThresholds(settings: MemoryCheckpointSettings, memoryCharacters: number): { userMessages: number; toolCalls: number } {
   if (settings.mode === 'custom') return { userMessages: settings.customUserMessages, toolCalls: settings.customToolCalls }
   const usage = Math.max(0, memoryCharacters) / 4000
-  if (usage >= 0.9) return { userMessages: 5, toolCalls: 25 }
+  if (usage >= 0.9) return { userMessages: 20, toolCalls: 100 }
   if (usage >= 0.75) return { userMessages: 20, toolCalls: 100 }
   if (usage >= 0.5) return { userMessages: 12, toolCalls: 60 }
   if (usage >= 0.25) return { userMessages: 8, toolCalls: 40 }
