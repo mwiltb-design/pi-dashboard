@@ -24,37 +24,104 @@ const DEFAULT_CONFIG: WorkerConfiguration = {
 
 const DEFAULT_ROUTER_MD = `# Worker Delegation Router (Level 1)
 
-When deciding which worker to assign for a task, follow these guidelines:
+When delegating tasks, classify the task into one of the following roles and route according to the YAML configuration below:
 
-## Provider Specializations
+\`\`\`yaml
+routing_roles:
+  # --- SUB-PI: Planning & Small-to-Medium Tasks ---
+  planning:
+    provider: sub-pi
+    model: gpt 6 astro
+    effort: high
+    mode: research
+    description: "Deep reasoning across project context resulting in a step-by-step actionable plan"
 
-### 1. Antigravity CLI (\`antigravity-cli\`)
-- **Strengths**: Deep reasoning, science and academic research, complex multi-file refactoring, algorithm design, full codebase sweeps.
-- **Supported Modes**: \`research\` (investigation), \`review\` (critique/risks), \`implement\` (code changes & testing).
-- **Default Recommendation**: Primary choice for scientific research, in-depth architectural reasoning, and complex full-stack implementations.
+  quick-fix:
+    provider: sub-pi
+    model: gpt 6 Luna
+    effort: low
+    mode: implement
+    description: "Targeted bugfixes, small script edits, typos, quick single-file changes"
 
-### 2. Codex CLI (\`codex-cli\`)
-- **Strengths**: Fast TypeScript/React component generation, unit tests (vitest/jest), boilerplate scaffolding, rapid code iterations.
-- **Supported Modes**: \`research\`, \`review\`, \`implement\`.
-- **Default Recommendation**: Primary choice for fast frontend/backend code generation, writing test suites, and narrow bug fixes.
+  small-medium-implementation:
+    provider: sub-pi
+    model: gpt 6 Luna
+    effort: medium
+    mode: implement
+    description: "Focused feature additions, utility functions, small modules, and unit tests"
 
-### 3. Claude CLI (\`claude-cli\`)
-- **Strengths**: Documentation writing, API design review, narrative structuring, markdown editing, high-level code critique.
-- **Supported Modes**: \`research\`, \`review\`, \`implement\`.
-- **Default Recommendation**: Primary choice for documentation, technical writing, and thorough code reviews.
+  review-and-critique:
+    provider: sub-pi
+    model: gpt 6 Luna
+    effort: medium
+    mode: review
+    description: "Code audits, edge case checks, review of small-to-medium PRs and changes"
 
-### 4. Sub PI (\`sub-pi\`)
-- **Strengths**: General-purpose isolated Pi sub-agent, plugin authoring, exploration without polluting main session history.
-- **Supported Modes**: \`research\`, \`review\`, \`implement\`.
-- **Default Recommendation**: Best for self-contained tasks, testing plugins, or running alternative models within Pi's native ecosystem.
+  jev-specialized:
+    provider: sub-pi
+    model: typesafe/jev-1.13
+    provider_source: openrouter
+    effort: high
+    mode: implement
+    description: "Dedicated high-precision tasks requiring custom Jev workflow instructions"
 
-## Core Rules & System Tools
+  # --- CODEX: Visual Design, HTML & Finished UI Products ---
+  ui-design-and-layout:
+    provider: codex-cli
+    model: gpt 6 Luna
+    effort: high
+    mode: implement
+    description: "HTML templates, CSS/Tailwind styling, UI component design, landing pages, visual presentation requiring taste"
 
-1. **Strict Workspace Confinement**: All created files, edits, and artifacts MUST be written directly inside the active project directory. Do not write to \`~/.gemini\`, \`~/.codex\`, or external temp folders.
-2. **Available System CLIs**: Workers inherit the host environment and may execute pre-installed tools when in \`implement\` mode:
-   - **GitHub CLI (\`gh\`)**: For checking PRs (\`gh pr diff\`), inspecting issues (\`gh issue view\`), and repository metadata.
-   - **ripgrep (\`rg\`)**: For lightning-fast regex search across the codebase.
-   - **uv / npm / bun**: For package management and running project validation tests.
+  # --- ANTIGRAVITY: Longest Tasks & Heavy Architectural Sweeps ---
+  deep-architecture:
+    provider: antigravity-cli
+    model: gemini 3.8 Flash
+    effort: high
+    mode: research
+    description: "System-level architecture, deep codebase-wide sweeps, data flow redesign"
+
+  heavy-implementation:
+    provider: antigravity-cli
+    model: gemini 3.8 Flash
+    effort: high
+    mode: implement
+    description: "Long-running tasks, extensive multi-file refactoring, large feature builds, and end-to-end verification"
+
+disabled_providers:
+  - claude-cli: "Never used"
+\`\`\`
+
+## Role Definitions & Routing Guidelines
+
+### 1. Sub PI: Planning & Small-to-Medium Workhorses
+Sub PI handles the initial plan, quick turnarounds, and everyday tasks:
+* **\`planning\` (\`gpt 6 astro\`)**: Used strictly for analyzing the project and writing complete, step-by-step implementation plans (e.g. into \`upgrades/work/\`).
+* **\`quick-fix\` (\`gpt 6 Luna\`)**: Low-overhead edits, typos, and rapid 1-to-2 file patches.
+* **\`small-medium-implementation\` (\`gpt 6 Luna\`)**: Standard coding tasks, utilities, and tests that don't span the entire architecture.
+* **\`review-and-critique\` (\`gpt 6 Luna\`)**: Read-only audits checking for edge cases and logical consistency.
+* **\`jev-specialized\` (\`typesafe/jev-1.13\` via OpenRouter)**: Specialized execution requiring Jev's custom handoff instructions.
+
+### 2. Codex CLI: Design, Taste & Finished UI Products
+Codex is reserved **exclusively** for visual design and polished presentation:
+* **\`ui-design-and-layout\` (\`gpt 6 Luna\`)**: HTML files, styling, web layouts, visual components, dashboard interfaces, and any user-facing output requiring aesthetic taste and a finished visual feel. Codex is **not** used for backend architecture or raw business logic.
+
+### 3. Antigravity CLI: The Longest & Heaviest Tasks
+Antigravity handles heavy-duty, long-context engineering:
+* **\`deep-architecture\` (\`gemini 3.8 Flash\` - High Effort)**: Massive context sweeps across the entire repository to plan complex system redesigns.
+* **\`heavy-implementation\` (\`gemini 3.8 Flash\` - High Effort)**: The longest-running tasks, cross-cutting multi-file refactors, and complex builds requiring rigorous compiler checking (\`tsc --noEmit\`, \`npm test\`).
+
+### 4. Claude CLI
+* **Status**: **Never used**.
+
+---
+
+## Core Safety Rules & System Tools
+1. **Strict Workspace Confinement**: All inspected, created, or modified files MUST stay within the active project directory. Never write outside the project workspace root.
+2. **Available Host CLIs**: Workers can invoke installed system tools when in \`implement\` mode:
+   * **GitHub CLI (\`gh\`)**: Inspect issues, PR diffs, and repo info.
+   * **ripgrep (\`rg\`)**: Fast codebase regex searches.
+   * **uv / npm / bun**: Package managers and test runner execution.
 `
 
 const DEFAULT_ANTIGRAVITY_MD = `# Antigravity CLI Guidelines (Level 2)
