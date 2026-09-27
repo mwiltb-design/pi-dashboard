@@ -15,12 +15,12 @@ On Windows, the supervisor records the worker PID and creation timestamp, then t
 
 ## Continuation and models
 
-- Codex CLI supports native continuation with its recorded thread ID.
-- Other providers (Sub-PI, Antigravity CLI, Claude CLI) currently start a new session with a structured saved handoff that carries forward task objectives, run findings, and dirty-file diffs.
+- Codex CLI and Antigravity CLI support native continuation (reusing the recorded thread ID or `--conversation` ID).
+- Other providers (Sub-PI, Claude CLI) currently start a new session with a structured saved handoff that carries forward task objectives, run findings, and dirty-file diffs.
 - The primary Pi assistant in Chat can also inspect and continue worker tasks programmatically via `dashboard_continue_worker_task`.
 - Antigravity CLI supports model selection (`gemini-3.8-flash`, `gemini-3.7-flash`, `gemini-3.1-pro`) and configurable reasoning effort (`low`, `medium`, `high`).
 - Continuations keep the original workspace, provider, and permission mode. Start a new task to change from read-only to implementation permissions.
-- If a native Codex session is unavailable, the failed run remains visible and **Use saved handoff** starts a new session only after the user chooses it.
+- If a native session is unavailable, the failed run remains visible and **Use saved handoff** starts a new session only after the user chooses it.
 
 ## Change tracking limits
 

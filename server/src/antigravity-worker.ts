@@ -67,6 +67,8 @@ export interface AntigravityWorkerOptions {
   git: GitService
   enabled: boolean
   antigravityHome?: string
+  command?: string
+  commandArgs?: string[]
 }
 
 const APPROVED_MODELS = new Set(['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.1-pro'])
@@ -92,7 +94,7 @@ export class AntigravityWorkerAdapter implements WorkerAdapter {
       statusLabel: ready ? 'Installed and ready' : this.options.enabled ? 'Installed; select Connect to sign in' : 'Disabled by configuration',
       modes: ['research', 'review', 'implement'] as WorkerMode[],
       enabled: this.options.enabled,
-      capabilities: { nativeSessions: false, continuation: false, structuredEvents: false, cancellation: true, modelSelection: true },
+      capabilities: { nativeSessions: true, continuation: true, structuredEvents: false, cancellation: true, modelSelection: true },
       loginCommand: 'exec agy',
       manageCommand: 'exec agy',
     }
@@ -102,7 +104,7 @@ export class AntigravityWorkerAdapter implements WorkerAdapter {
     if (this.active) throw new Error('Antigravity CLI is already running another task')
     const before = (await this.options.git.status()).entries
     const timeout = `${Math.max(60, Math.ceil(input.bounds.timeoutMs / 1_000))}s`
-    const command = resolveExecutable('agy')
+    const command = this.options.command ?? resolveExecutable('agy')
     const requestedModel = input.model?.id
     if (requestedModel && !APPROVED_MODELS.has(requestedModel)) {
       throw new Error(`Antigravity model '${requestedModel}' is not approved`)
@@ -111,15 +113,23 @@ export class AntigravityWorkerAdapter implements WorkerAdapter {
     if (requestedEffort && !APPROVED_EFFORTS.has(requestedEffort)) {
       throw new Error(`Antigravity effort '${requestedEffort}' is not approved; use low, medium, or high`)
     }
+
+    const isContinuation = input.continuation?.kind === 'native' && Boolean(input.continuation.sessionId)
+    const prompt = isContinuation
+      ? effectiveWorkerPrompt(input)
+      : workerPrompt(input, this.options.workspace)
+
     const args = [
+      ...(this.options.commandArgs ?? []),
       ...(requestedModel ? ['--model', requestedModel] : []),
       ...(requestedEffort ? ['--effort', requestedEffort] : []),
       '--add-dir', this.options.workspace,
-      '--print', workerPrompt(input, this.options.workspace),
+      ...(isContinuation ? ['--conversation', input.continuation!.sessionId!] : []),
+      '--print', prompt,
       '--sandbox',
       '--disable-slash-commands',
       ...(input.mode === 'implement' ? ['--dangerously-skip-permissions'] : []),
-      '--output-format', 'text',
+      '--output-format', 'json',
       '--print-timeout', timeout,
     ]
 
@@ -146,11 +156,45 @@ export class AntigravityWorkerAdapter implements WorkerAdapter {
         child.once('close', resolve)
       })
       const output = stdout.trim()
+      let textResult = output
+      let conversationId: string | undefined
+
+      try {
+        const parsed = JSON.parse(output) as Record<string, unknown>
+        if (typeof parsed.conversation_id === 'string' && parsed.conversation_id) {
+          conversationId = parsed.conversation_id
+        }
+        if (typeof parsed.response === 'string') {
+          textResult = parsed.response
+        }
+      } catch {
+        const lines = output.split('\n')
+        for (let i = lines.length - 1; i >= 0; i--) {
+          const line = lines[i].trim()
+          if (line.startsWith('{') && line.endsWith('}')) {
+            try {
+              const parsed = JSON.parse(line) as Record<string, unknown>
+              if (typeof parsed.conversation_id === 'string' && parsed.conversation_id) {
+                conversationId = parsed.conversation_id
+              }
+              if (typeof parsed.response === 'string') {
+                textResult = parsed.response
+              }
+              break
+            } catch {}
+          }
+        }
+      }
+
+      if (conversationId) {
+        await hooks.onSession(conversationId)
+      }
+
       if (exitCode !== 0) {
-        const partial = output ? boundedText(output, input.bounds.resultLimitBytes) : undefined
+        const partial = textResult ? boundedText(textResult, input.bounds.resultLimitBytes) : undefined
         throw new WorkerRunError(`Antigravity CLI exited with code ${exitCode ?? 'unknown'}${stderr.trim() ? `: ${stderr.trim()}` : ''}`, partial?.text, partial?.truncated)
       }
-      const bounded = boundedText(output || stderr.trim() || 'Antigravity finished without a text result.', input.bounds.resultLimitBytes)
+      const bounded = boundedText(textResult || stderr.trim() || 'Antigravity finished without a text result.', input.bounds.resultLimitBytes)
       const after = (await this.options.git.status()).entries
       const files = changedFiles(before, after)
 
@@ -163,6 +207,7 @@ export class AntigravityWorkerAdapter implements WorkerAdapter {
           actionsTaken: files.length ? [`Modified ${files.length} file(s)`] : ['Completed task inspection'],
           changedFiles: files,
           warnings: stderr.trim() ? [stderr.trim().slice(0, 200)] : [],
+          ...(conversationId ? { sessionId: conversationId } : {}),
         },
       }
     } finally {

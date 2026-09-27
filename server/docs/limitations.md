@@ -20,7 +20,7 @@
 - One delegated worker job executes at a time per project data directory; additional jobs queue.
 - The Dashboard enforces a 1-30 minute job deadline and bounds retained/displayed output.
 - Turn limits apply only to Sub-PI. External CLI activity counts are informational.
-- Native continuation is currently verified for Codex. Other providers (Sub-PI, Antigravity CLI, Claude CLI) use a new session with a structured saved handoff.
+- Native continuation is verified for Codex and Antigravity. Other providers (Sub-PI, Claude CLI) use a new session with a structured saved handoff.
 - Per-run change previews require Git. Non-Git workspaces receive an explicit incomplete-tracking warning.
 - Text diffs are capped at 256 KB per file and 2 MB total.
 - Interrupted implementation work is never replayed automatically.

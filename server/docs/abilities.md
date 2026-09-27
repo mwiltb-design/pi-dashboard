@@ -28,8 +28,8 @@ The Workers screen supports Sub-PI, Antigravity CLI, Codex CLI, and Claude CLI w
 - Cancellation and timeout cleanup for the owned process tree
 - Task recovery after UI/backend restart without automatic replay of interrupted work
 - Bounded results, run history, and per-run Git text changes
-- Native Codex continuation when a recorded thread is available
-- Clearly labeled saved-handoff continuation for providers without a verified native session (Sub-PI, Antigravity CLI, Claude CLI)
+- Native continuation for Codex CLI (thread ID) and Antigravity CLI (`--conversation` ID)
+- Clearly labeled saved-handoff continuation for providers without a verified native session (Sub-PI, Claude CLI)
 - Worker task continuation and status inspection directly from Chat via Pi tools (`dashboard_continue_worker_task`, `dashboard_get_worker_task`)
 - Antigravity CLI model selection (`gemini-3.8-flash`, `gemini-3.7-flash`, `gemini-3.1-pro`) and configurable reasoning effort (`low`, `medium`, `high`)
 - Editable routing and provider rules under `~/.pi-dashboard/workers/`

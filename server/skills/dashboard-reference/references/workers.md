@@ -32,8 +32,8 @@ External CLI activity events are not model-turn limits.
 
 Continue creates another run under the same logical task and keeps the original provider, workspace, and permission mode.
 
-- **Codex CLI**: Reuses its recorded thread when native continuation is available.
-- **Other Providers (Sub-PI, Antigravity CLI, Claude CLI)**: Start a new session with a structured saved handoff summarizing prior objectives, findings, and dirty-file diffs.
+- **Codex CLI & Antigravity CLI**: Reuse their recorded thread or conversation ID when native continuation is available (`codex exec resume <thread_id>`, `agy --conversation <conversation_id>`).
+- **Other Providers (Sub-PI, Claude CLI)**: Start a new session with a structured saved handoff summarizing prior objectives, findings, and dirty-file diffs.
 - **Pi Chat Integration**: The primary Pi assistant can continue tasks programmatically via `dashboard_continue_worker_task` or query task status via `dashboard_get_worker_task`.
 
 Start a new task if the provider, project, or permission mode must change.
