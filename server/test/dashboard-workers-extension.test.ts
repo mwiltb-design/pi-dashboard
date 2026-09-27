@@ -15,6 +15,8 @@ test('dashboardWorkers registers worker delegation, continuation, and status too
 
   assert.equal(tools.length, 3)
   assert.equal(tools[0].name, 'dashboard_delegate_worker')
+  assert.ok(tools[0].parameters.properties.model)
+  assert.ok(tools[0].parameters.properties.thinkingLevel)
   assert.equal(tools[1].name, 'dashboard_continue_worker_task')
   assert.equal(tools[2].name, 'dashboard_get_worker_task')
 })

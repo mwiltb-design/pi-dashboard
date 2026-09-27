@@ -636,6 +636,28 @@ async function handleHttp(request: IncomingMessage, response: ServerResponse): P
     return
   }
 
+function parseWorkerModel(rawModel: unknown, providerId?: string): { provider: string; id: string } | undefined {
+  if (rawModel && typeof rawModel === 'object' && typeof (rawModel as any).provider === 'string' && typeof (rawModel as any).id === 'string') {
+    return { provider: String((rawModel as any).provider), id: String((rawModel as any).id) }
+  }
+  if (typeof rawModel === 'string' && rawModel.trim()) {
+    const modelStr = rawModel.trim()
+    const targetProvider = providerId || 'sub-pi'
+    if (targetProvider === 'antigravity-cli') {
+      return { provider: 'antigravity', id: modelStr }
+    }
+    if (targetProvider === 'codex-cli') {
+      return { provider: 'openai', id: modelStr }
+    }
+    if (modelStr.includes('/')) {
+      const slashIndex = modelStr.indexOf('/')
+      return { provider: modelStr.slice(0, slashIndex), id: modelStr.slice(slashIndex + 1) }
+    }
+    return { provider: 'openai', id: modelStr }
+  }
+  return undefined
+}
+
   if (url.pathname.startsWith('/internal/workers/')) {
     const supplied = request.headers['x-pi-dashboard-worker-token']
     const suppliedBuffer = Buffer.from(typeof supplied === 'string' ? supplied : '')
@@ -652,6 +674,8 @@ async function handleHttp(request: IncomingMessage, response: ServerResponse): P
         mode: typeof body.mode === 'string' ? body.mode : undefined,
         prompt: typeof body.prompt === 'string' ? body.prompt : undefined,
         bounds: body.bounds && typeof body.bounds === 'object' ? body.bounds as any : undefined,
+        model: parseWorkerModel(body.model, typeof body.providerId === 'string' ? body.providerId : undefined),
+        thinkingLevel: typeof body.thinkingLevel === 'string' && body.thinkingLevel.trim() ? body.thinkingLevel.trim() : undefined,
         submissionId: typeof body.submissionId === 'string' ? body.submissionId : undefined,
       }))
       return
@@ -1088,10 +1112,8 @@ async function handleHttp(request: IncomingMessage, response: ServerResponse): P
       mode: typeof body.mode === 'string' ? body.mode : undefined,
       prompt: typeof body.prompt === 'string' ? body.prompt : undefined,
       bounds: body.bounds && typeof body.bounds === 'object' ? body.bounds as any : undefined,
-      model: body.model && typeof body.model === 'object' && typeof (body.model as any).provider === 'string' && typeof (body.model as any).id === 'string'
-        ? { provider: String((body.model as any).provider), id: String((body.model as any).id) }
-        : undefined,
-      thinkingLevel: typeof body.thinkingLevel === 'string' ? body.thinkingLevel : undefined,
+      model: parseWorkerModel(body.model, typeof body.providerId === 'string' ? body.providerId : undefined),
+      thinkingLevel: typeof body.thinkingLevel === 'string' && body.thinkingLevel.trim() ? body.thinkingLevel.trim() : undefined,
       submissionId: typeof body.submissionId === 'string' ? body.submissionId : undefined,
     })
     record({ category: 'system', type: 'worker_task_started', severity: 'info', summary: `Started ${task.mode} task with ${task.providerName}`, sessionId: currentSessionId, data: { taskId: task.id, providerId: task.providerId, mode: task.mode } })

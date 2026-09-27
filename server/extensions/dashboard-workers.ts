@@ -95,6 +95,7 @@ export default function dashboardWorkers(pi: ExtensionAPI) {
     promptSnippet: 'Delegate a narrow research, review, or implementation task to a specialized worker CLI',
     promptGuidelines: [
       'Consult WORKERS.md routing rules when choosing which provider to delegate to (e.g. antigravity-cli for science/deep reasoning, codex-cli for fast code/tests, claude-cli for docs/critique, sub-pi for native Pi tasks).',
+      'Optionally specify model (e.g. "gemini-3.8-flash", "gpt-4o", "openrouter/model-name") and thinkingLevel ("low", "medium", "high") based on WORKERS.md rules.',
       'Workers execute sequentially in the background. If multiple tasks are delegated, they queue automatically.',
       'If a task returns status "still_running" or waitEnded: true, DO NOT resubmit the task. Use dashboard_get_worker_task with the taskId to check its progress.',
       'Use workers for narrow, bounded tasks with concrete deliverables.',
@@ -114,6 +115,8 @@ export default function dashboardWorkers(pi: ExtensionAPI) {
         Type.Literal('implement'),
       ], { description: 'Read-only research, read-only review, or project-writing implementation.' }),
       prompt: Type.String({ minLength: 1, maxLength: 12000, description: 'The complete bounded task and expected deliverable.' }),
+      model: Type.Optional(Type.String({ description: 'Optional model identifier to use for this task (e.g. "gemini-3.8-flash", "gpt-4o", "openrouter/typesafe/jev-1.13").' })),
+      thinkingLevel: Type.Optional(Type.String({ description: 'Optional reasoning effort level: low, medium, or high.' })),
       bounds: Type.Optional(Type.Object({
         turnLimit: Type.Optional(Type.Number({ minimum: 1, maximum: 30, description: 'Maximum turns (1-30)' })),
         timeoutMinutes: Type.Optional(Type.Number({ minimum: 1, maximum: 30, description: 'Maximum minutes (1-30)' })),
@@ -128,6 +131,8 @@ export default function dashboardWorkers(pi: ExtensionAPI) {
           mode: parameters.mode,
           prompt: parameters.prompt,
           submissionId: toolCallId,
+          ...(parameters.model ? { model: parameters.model } : {}),
+          ...(parameters.thinkingLevel ? { thinkingLevel: parameters.thinkingLevel } : {}),
           ...(parameters.bounds ? {
             bounds: {
               ...(parameters.bounds.turnLimit ? { turnLimit: parameters.bounds.turnLimit } : {}),
