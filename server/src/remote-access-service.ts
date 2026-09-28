@@ -55,7 +55,7 @@ export class RemoteAccessService {
     } catch {}
   }
 
-  get(uiPort = 5173): RemoteAccessState {
+  get(uiPort = 4317): RemoteAccessState {
     const host = this.data.tailnetHost || 'my-computer.tailnet.ts.net'
     const httpsPort = this.data.httpsPort || 8443
     const origin = this.data.tailnetHost ? `https://${this.data.tailnetHost}:${httpsPort}` : ''
@@ -100,7 +100,7 @@ export class RemoteAccessService {
     tailnetHost?: string
     httpsPort?: number
     password?: string
-  }, uiPort = 5173): RemoteAccessState {
+  }, uiPort = 4317): RemoteAccessState {
     if (typeof input.enabled === 'boolean') {
       this.data.enabled = input.enabled
     }

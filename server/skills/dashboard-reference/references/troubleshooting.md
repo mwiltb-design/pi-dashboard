@@ -59,7 +59,7 @@ Check `DASHBOARD_ALLOWED_HOSTS` for the Tailscale hostname or configure it direc
    ```
 3. If disconnected or reset, run the copyable command from the Settings tab:
    ```powershell
-   tailscale serve --bg --https=8443 http://127.0.0.1:5173
+   tailscale serve --bg --https=8443 http://127.0.0.1:4317
    ```
 
 ## Terminal Or Workers Missing

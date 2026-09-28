@@ -492,7 +492,7 @@ async function systemSnapshot(): Promise<Record<string, unknown>> {
       processIsolation: 'Electron local-process isolation',
       workspaceIsolationEnforced: true,
       allowedOrigins: [...allowedOrigins],
-      remoteAccess: remoteAccess.get(),
+      remoteAccess: remoteAccess.get(port),
     },
   }
 }
@@ -1304,7 +1304,7 @@ function parseWorkerModel(rawModel: unknown, providerId?: string): { provider: s
       tailnetHost: typeof body.tailnetHost === 'string' ? body.tailnetHost : undefined,
       httpsPort: typeof body.httpsPort === 'number' ? body.httpsPort : undefined,
       password: typeof body.password === 'string' ? body.password : undefined,
-    })
+    }, port)
     if (remoteAccess.getToken()) {
       auth.setToken(remoteAccess.getToken())
     } else {
@@ -1392,7 +1392,7 @@ function parseWorkerModel(rawModel: unknown, providerId?: string): { provider: s
     return
   }
   if (url.pathname === '/api/system/remote-access') {
-    json(response, 200, remoteAccess.get())
+    json(response, 200, remoteAccess.get(port))
     return
   }
   if (url.pathname === '/api/projects') {

@@ -38,7 +38,7 @@ See `workers.md` for queueing, recovery, continuation, and change-view behavior.
 3. Run the command shown by Settings. With the default UI port it has this form:
 
    ```powershell
-   tailscale serve --bg --https=8443 http://127.0.0.1:5173
+   tailscale serve --bg --https=8443 http://127.0.0.1:4317
    ```
 
 4. From another device on the same Tailnet, open `https://<hostname>:8443` and authenticate with the Dashboard password.
@@ -48,7 +48,7 @@ Useful commands:
 - `tailscale serve status`
 - `tailscale serve reset`
 
-The allowed browser origin must include the exact HTTPS hostname and port. If the Dashboard selected a UI port other than 5173, use the displayed command rather than copying the example.
+The allowed browser origin must include the exact HTTPS hostname and port. If the Dashboard selected a port other than 4317, use the displayed command rather than copying the example.
 
 ## Backup
 

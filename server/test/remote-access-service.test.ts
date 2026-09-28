@@ -17,10 +17,11 @@ test('RemoteAccessService: local-only defaults', () => {
   try {
     const configPath = join(tempDir, 'remote-access.json')
     const service = new RemoteAccessService(configPath)
-    const state = service.get(5173)
+    const state = service.get()
 
     assert.equal(state.enabled, false)
     assert.equal(state.tokenConfigured, false)
+    assert.match(state.serveCommand, /tailscale serve --bg --https=8443 http:\/\/127\.0\.0\.1:4317/)
     assert.equal(service.getToken(), undefined)
     assert.equal(service.getAllowedOrigin(), undefined)
     assert.equal(service.getTailnetHost(), undefined)
@@ -40,14 +41,14 @@ test('RemoteAccessService: configure tailnet host and password', () => {
       tailnetHost: 'my-desktop.tailnet.ts.net',
       httpsPort: 8443,
       password: 'MySecretPassword123!',
-    }, 5173)
+    })
 
     assert.equal(updated.enabled, true)
     assert.equal(updated.tokenConfigured, true)
     assert.equal(service.getToken(), 'MySecretPassword123!')
     assert.equal(service.getAllowedOrigin(), 'https://my-desktop.tailnet.ts.net:8443')
     assert.equal(service.getTailnetHost(), 'my-desktop.tailnet.ts.net')
-    assert.match(updated.serveCommand, /tailscale serve --bg --https=8443 http:\/\/127\.0\.0\.1:5173/)
+    assert.match(updated.serveCommand, /tailscale serve --bg --https=8443 http:\/\/127\.0\.0\.1:4317/)
   } finally {
     rmSync(tempDir, { recursive: true, force: true })
   }
