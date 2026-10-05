@@ -13,7 +13,7 @@
   "dependencies": {
     "@earendil-works/pi-ai": "^0.84.2",
     "@earendil-works/pi-coding-agent": "^0.84.2",
-    "@homebridge/node-pty-prebuilt-multiarch": "^0.14.1",
+    "node-pty": "^1.1.0",
     "@sinclair/typebox": "^0.34.14",
     "croner": "^9.0.0",
     "minimatch": "^10.0.1",

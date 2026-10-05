@@ -18,7 +18,7 @@ async function run() {
     banner: {
       js: `import { createRequire as __createRequire } from 'node:module'; const require = __createRequire(import.meta.url);`,
     },
-    external: ['@homebridge/node-pty-prebuilt-multiarch', 'fsevents'],
+    external: ['node-pty', 'fsevents'],
     outfile: resolve(__dirname, 'dist/index.js'),
     sourcemap: true,
   })
@@ -33,7 +33,7 @@ async function run() {
     banner: {
       js: `import { createRequire as __createRequire } from 'node:module'; const require = __createRequire(import.meta.url);`,
     },
-    external: ['@homebridge/node-pty-prebuilt-multiarch', 'fsevents'],
+    external: ['node-pty', 'fsevents'],
     outfile: resolve(__dirname, 'dist/worker-supervisor-process.js'),
     sourcemap: true,
   })

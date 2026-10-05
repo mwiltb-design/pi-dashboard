@@ -1,4 +1,4 @@
-import pty from '@homebridge/node-pty-prebuilt-multiarch'
+import pty from 'node-pty'
 import type { WebSocket } from 'ws'
 
 export class NativeTerminalSession {

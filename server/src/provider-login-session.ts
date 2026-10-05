@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import type { WebSocket } from 'ws'
-import pty from '@homebridge/node-pty-prebuilt-multiarch'
+import pty from 'node-pty'
 import { resolvePiCli, resolveNode20CompatScript, resolveNodeExecutable } from './runtime-compat.js'
 
 const LOGIN_ARGS = ['--no-context-files', '--no-extensions', '--no-skills', '--no-prompt-templates']

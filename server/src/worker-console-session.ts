@@ -1,6 +1,6 @@
 ﻿import { homedir } from 'node:os'
 import type { WebSocket } from 'ws'
-import pty from '@homebridge/node-pty-prebuilt-multiarch'
+import pty from 'node-pty'
 import { resolveExecutable } from './process-control.js'
 
 export class WorkerConsoleSession {

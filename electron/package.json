@@ -79,8 +79,7 @@
     ],
     "asar": true,
     "asarUnpack": [
-      "**/node-pty/**",
-      "**/@homebridge/node-pty-prebuilt-multiarch/**"
+      "**/node-pty/**"
     ],
     "win": {
       "target": [

@@ -11,6 +11,7 @@ This file records user-facing Foci Dashboard upgrades. Versions follow [Semantic
 
 ### Fixed
 
+- Replaced the native terminal dependency whose published package omitted the Unix build sources, preventing macOS Universal native rebuilds; the supported upstream package now supplies the source and macOS architecture prebuilds.
 - Kept packaged backend services alive when the last macOS window closes so reopening from the Dock works; services are cleaned up when the app quits.
 - Added common macOS and user-managed Node CLI paths to packaged app processes so installed worker CLIs can be discovered when available.
 

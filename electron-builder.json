@@ -39,12 +39,12 @@
       "to": "server/package.json"
     },
     {
-      "from": "node_modules/@homebridge",
-      "to": "server/node_modules/@homebridge"
+      "from": "node_modules/node-pty",
+      "to": "server/node_modules/node-pty"
     },
     {
-      "from": "node_modules/@homebridge",
-      "to": "node_modules/@homebridge"
+      "from": "node_modules/node-pty",
+      "to": "node_modules/node-pty"
     },
     {
       "from": "node_modules/@earendil-works",
