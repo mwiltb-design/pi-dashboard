@@ -61,7 +61,7 @@ To run from a source checkout instead of installing, use `.\scripts\dev.ps1`. Fo
 
 The Mac release is a single Universal app for both Apple Silicon and Intel Macs. A packaged install does not require a separate Node.js installation. Open the disk image, drag **Foci Dashboard** to **Applications**, then launch it from the Applications folder or Dock. First launch opens the existing one-time onboarding flow.
 
-To build the universal Mac disk image from a Mac, install Node.js 20 or newer, clone the repository, and run:
+To build the universal Mac disk image from a Mac, install Node.js 20 or newer, Git, and Xcode Command Line Tools (`xcode-select --install`), clone the repository, and run:
 
 ```bash
 npm install
