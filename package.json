@@ -15,7 +15,9 @@
     "dev:server": "npm --prefix server run dev",
     "dev:ui": "npm --prefix ui run dev",
     "build": "npm --prefix server run build && npm --prefix ui run build",
-    "dist:windows": "npm run build && electron-builder --win"
+    "dist:windows": "npm run build && electron-builder --win",
+    "icons:mac": "bash scripts/generate-icons-mac.sh",
+    "dist:mac": "npm run build && npm run icons:mac && electron-builder --mac --universal --config.npmRebuild=true"
   },
   "keywords": [
     "pi",

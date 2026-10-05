@@ -71,6 +71,29 @@
       "to": "packages"
     }
   ],
+  "mac": {
+    "category": "public.app-category.developer-tools",
+    "icon": "assets/icon.icns",
+    "target": [
+      {
+        "target": "dmg",
+        "arch": ["universal"]
+      },
+      {
+        "target": "zip",
+        "arch": ["universal"]
+      }
+    ],
+    "artifactName": "Foci-Dashboard-${version}-mac-universal.${ext}",
+    "hardenedRuntime": true
+  },
+  "dmg": {
+    "title": "Foci Dashboard Installer",
+    "contents": [
+      { "x": 130, "y": 220 },
+      { "x": 410, "y": 220, "type": "link", "path": "/Applications" }
+    ]
+  },
   "win": {
     "target": [
       {

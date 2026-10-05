@@ -4,6 +4,16 @@ This file records user-facing Foci Dashboard upgrades. Versions follow [Semantic
 
 ## [Unreleased]
 
+### Added
+
+- Added a single Universal macOS installer target for Intel and Apple Silicon Macs, with DMG and ZIP artifacts and a generated `.icns` app icon.
+- Documented the Mac install/build flow and its first-launch onboarding and unsigned-build expectations.
+
+### Fixed
+
+- Kept packaged backend services alive when the last macOS window closes so reopening from the Dock works; services are cleaned up when the app quits.
+- Added common macOS and user-managed Node CLI paths to packaged app processes so installed worker CLIs can be discovered when available.
+
 ## [1.0.0-alpha.4] - 2026-09-19
 
 ### Added

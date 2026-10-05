@@ -229,7 +229,7 @@ export function StackFeatureSelectorCard() {
                 onChange={() => handleToggleFeature('terminal')}
                 disabled={busy}
               />
-              <span><strong>Native Terminal</strong> — PowerShell, Bash, CMD inside dashboard</span>
+              <span><strong>Native Terminal</strong> — your system shell (PowerShell, Bash, or Zsh)</span>
             </label>
             <label className="feature-checkbox">
               <input

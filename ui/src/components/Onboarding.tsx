@@ -140,7 +140,7 @@ export function Onboarding({ initial, terminalEnabled, workersEnabled, authentic
         <article className="onboarding-capability" style={{ cursor: 'pointer' }} onClick={() => setEnableTerminal(!enableTerminal)}>
           <div>
             <strong>Embedded Native Terminal</strong>
-            <p>Integrated PowerShell / Command terminal powered by native pseudo-terminal execution.</p>
+            <p>Integrated system-shell terminal powered by native pseudo-terminal execution.</p>
           </div>
           <input type="checkbox" checked={enableTerminal} onChange={(e) => setEnableTerminal(e.target.checked)} />
         </article>

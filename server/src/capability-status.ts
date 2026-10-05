@@ -19,7 +19,7 @@ export function terminalCapabilityStatus(profile: DashboardProfileName, enabled:
   return {
     id: 'terminal',
     name: 'Integrated Project Terminal',
-    description: 'Embedded project shell with direct PowerShell/Bash execution, isolated to your active project workspace.',
+    description: 'Embedded project shell using the system shell, isolated to your active project workspace.',
     enabled,
     status,
     statusLabel: status === 'ready'

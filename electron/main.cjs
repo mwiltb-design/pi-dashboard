@@ -113,6 +113,15 @@ async function startServices() {
     path.join(ROOT_DIR, 'node_modules'),
   ].filter((p) => fs.existsSync(p)).join(path.delimiter)
 
+  const homeDir = require('node:os').homedir()
+  const macNodePaths = process.platform === 'darwin'
+    ? (() => {
+        const nvmRoot = path.join(homeDir, '.nvm', 'versions', 'node')
+        try {
+          return fs.readdirSync(nvmRoot).map((version) => path.join(nvmRoot, version, 'bin'))
+        } catch { return [] }
+      })()
+    : []
   const extraPaths = isWindows ? [
     'C:\\Program Files\\nodejs',
     'C:\\Program Files (x86)\\nodejs',
@@ -120,6 +129,15 @@ async function startServices() {
     path.join(process.env.APPDATA || '', 'npm'),
     path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Git', 'cmd'),
     'C:\\Program Files\\Git\\cmd',
+  ].filter((p) => p && fs.existsSync(p)) : process.platform === 'darwin' ? [
+    '/opt/homebrew/bin',
+    '/opt/homebrew/sbin',
+    '/usr/local/bin',
+    '/usr/local/sbin',
+    path.join(homeDir, '.local', 'bin'),
+    path.join(homeDir, '.npm-global', 'bin'),
+    path.join(homeDir, '.volta', 'bin'),
+    ...macNodePaths,
   ].filter((p) => p && fs.existsSync(p)) : []
 
   const currentPath = process.env.PATH || ''
@@ -260,8 +278,6 @@ async function createWindow(uiPort, backendPort) {
 
   mainWindow.on('closed', () => {
     mainWindow = null
-    killChild(backendProcess)
-    killChild(frontendProcess)
   })
 }
 
@@ -280,8 +296,6 @@ app.whenReady().then(async () => {
 })
 
 app.on('window-all-closed', () => {
-  killChild(backendProcess)
-  killChild(frontendProcess)
   if (process.platform !== 'darwin') {
     app.quit()
   }

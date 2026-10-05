@@ -57,6 +57,23 @@ If you build without a signing certificate, Windows may show a SmartScreen warni
 
 To run from a source checkout instead of installing, use `.\scripts\dev.ps1`. For macOS or Linux development, use `./scripts/dev.sh`; building the Windows installer is Windows-only.
 
+## Install or build on macOS
+
+The Mac release is a single Universal app for both Apple Silicon and Intel Macs. A packaged install does not require a separate Node.js installation. Open the disk image, drag **Foci Dashboard** to **Applications**, then launch it from the Applications folder or Dock. First launch opens the existing one-time onboarding flow.
+
+To build the universal Mac disk image from a Mac, install Node.js 20 or newer, clone the repository, and run:
+
+```bash
+npm install
+npm run dist:mac
+```
+
+The installer and ZIP are written to `dist/`. The build creates the Mac app icon from `assets/icon.png` using macOS built-in tools and rebuilds native dependencies separately for both architectures before combining them. Universal packaging requires a Mac build host; the release still has one download and does not ask users to choose a processor type. An unsigned development build may require Control-clicking the app in Finder and choosing **Open** the first time. A smooth public download without that warning requires code signing and notarization.
+
+Optional worker-provider CLIs continue to follow their existing install, authentication, and enablement flow; they are not prerequisites for installing or launching Foci.
+
+To run from a source checkout instead of installing, use `./scripts/dev.sh` on macOS or Linux.
+
 ## Upgrades and version history
 
 The current version is **1.0.0-alpha.4**. Recent upgrades:

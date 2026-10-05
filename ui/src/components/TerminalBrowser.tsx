@@ -8,12 +8,19 @@ type TerminalStatus = 'connecting' | 'ready' | 'closed' | 'error'
 
 export type ShellType = 'powershell' | 'cmd' | 'wsl' | 'bash' | 'zsh'
 
-const SHELLS: { id: ShellType; label: string; platformNote?: string }[] = [
-  { id: 'powershell', label: 'PowerShell' },
-  { id: 'cmd', label: 'Command Prompt' },
-  { id: 'wsl', label: 'WSL / Linux' },
-  { id: 'bash', label: 'Bash / macOS' },
-]
+const isWindows = navigator.platform.startsWith('Win')
+const isMac = navigator.platform.startsWith('Mac')
+const SHELLS: { id: ShellType; label: string }[] = isWindows
+  ? [
+      { id: 'powershell', label: 'PowerShell' },
+      { id: 'cmd', label: 'Command Prompt' },
+      { id: 'wsl', label: 'WSL / Linux' },
+      { id: 'bash', label: 'Bash' },
+    ]
+  : [
+      { id: 'zsh', label: 'Zsh' },
+      { id: 'bash', label: 'Bash' },
+    ]
 
 function terminalSocketUrl(shell: ShellType): string {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
@@ -103,7 +110,7 @@ function TerminalSession({ shell, onStatus }: { shell: ShellType; onStatus: (sta
 }
 
 export function TerminalBrowser() {
-  const [selectedShell, setSelectedShell] = useState<ShellType>('powershell')
+  const [selectedShell, setSelectedShell] = useState<ShellType>(isWindows ? 'powershell' : isMac ? 'zsh' : 'bash')
   const [generation, setGeneration] = useState(0)
   const [active, setActive] = useState(true)
   const [status, setStatus] = useState<TerminalStatus>('connecting')

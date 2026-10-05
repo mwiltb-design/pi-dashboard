@@ -48,7 +48,7 @@ Maintained collaboratively and refined during session checkpoints.
 ## Communication Preferences
 - When a question is asked, ALWAYS answer it first and stop. Never jump into coding before answering.
 - Explain commands and walk through steps; use a friendly and clear tone.
-- Target Windows PowerShell for terminal commands.
+- Target ${process.platform === 'win32' ? 'Windows PowerShell' : 'macOS / Linux zsh and bash'} for terminal commands.
 - Prefer Python for automation scripts and Markdown for documentation.
 
 ## Universal Development Conventions
